@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="property-inspector.css">
+    <script src="property-inspector.js"></script>
+  </head>
+  <body>
+    <div class="sdpi-item channel-kind-settings">
+      <div class="sdpi-item-label">Channel</div>
+      <select id="channelKind" class="sdpi-item-value">
+        <option value="strip">Strip (input)</option>
+        <option value="bus">Bus (output)</option>
+      </select>
+    </div>
+    <div class="sdpi-item channel-index-settings">
+      <div class="sdpi-item-label" id="channelIndexLabel">Index</div>
+      <input id="channelIndex" class="sdpi-item-value" type="number" min="0" max="7" value="0">
+    </div>
+    <div class="sdpi-item gain-step-settings">
+      <div class="sdpi-item-label">Step (dB)</div>
+      <input id="step" class="sdpi-item-value" type="number" min="0.1" max="24" step="0.5" value="3">
+    </div>
+    <div class="sdpi-item block overview-settings">
+      <div class="sdpi-item-label">Overview</div>
+      <div class="sdpi-item-value checkbox-grid" id="overviewGrid"></div>
+    </div>
+    <div class="sdpi-item balance-settings">
+      <div class="sdpi-item-label">Primary</div>
+      <select id="balancePrimaryKind" class="sdpi-item-value">
+        <option value="strip">Strip</option>
+        <option value="bus">Bus</option>
+      </select>
+      <input id="balancePrimaryIndex" class="sdpi-item-value" type="number" min="0" max="7" value="0">
+    </div>
+    <div class="sdpi-item balance-settings">
+      <div class="sdpi-item-label">Secondary</div>
+      <select id="balanceSecondaryKind" class="sdpi-item-value">
+        <option value="strip">Strip</option>
+        <option value="bus">Bus</option>
+      </select>
+      <input id="balanceSecondaryIndex" class="sdpi-item-value" type="number" min="0" max="7" value="1">
+    </div>
+    <div class="sdpi-item balance-settings">
+      <div class="sdpi-item-label">Diff step (dB)</div>
+      <input id="balanceStep" class="sdpi-item-value" type="number" min="0.1" max="12" step="0.5" value="1">
+    </div>
+    <div class="sdpi-item device-select-settings">
+      <div class="sdpi-item-label">Device</div>
+      <select id="deviceSelect" class="sdpi-item-value">
+        <option value="">Load devices...</option>
+      </select>
+    </div>
+    <div class="sdpi-item device-select-settings">
+      <div class="sdpi-item-label">Device ID</div>
+      <input id="deviceId" class="sdpi-item-value" placeholder="driver:device name">
+    </div>
+    <div class="sdpi-item device-select-settings device-info-settings">
+      <div class="sdpi-item-label">Devices</div>
+      <button id="refreshDevices" class="sdpi-button" type="button">Refresh</button>
+      <span id="deviceStatus" class="sdpi-status">not loaded</span>
+    </div>
+    <div class="sdpi-item macro-settings">
+      <div class="sdpi-item-label">Button index</div>
+      <input id="macroButtonIndex" class="sdpi-item-value" type="number" min="0" max="79" value="0">
+    </div>
+    <div class="sdpi-item macro-settings">
+      <div class="sdpi-item-label">Status</div>
+      <button id="refreshMacroStatus" class="sdpi-button" type="button">Refresh</button>
+      <span id="macroStatus" class="sdpi-status">not checked</span>
+    </div>
+    <div class="sdpi-item app-command-settings">
+      <div class="sdpi-item-label">Command</div>
+      <select id="appCommand" class="sdpi-item-value">
+        <option value="show">Show</option>
+        <option value="restart">Restart</option>
+        <option value="shutdown">Shutdown</option>
+      </select>
+    </div>
+    <div class="sdpi-item title-label-settings">
+      <div class="sdpi-item-label">Title label</div>
+      <input id="titleLabel" class="sdpi-item-value" placeholder="optional display alias">
+    </div>
+    <div class="sdpi-item invert-settings">
+      <div class="sdpi-item-label">Invert knob</div>
+      <input id="invertKnob" class="sdpi-checkbox" type="checkbox">
+    </div>
+    <div class="sdpi-item diagnostics-settings">
+      <div class="sdpi-item-label">Diagnostics</div>
+      <button id="refreshDiagnostics" class="sdpi-button" type="button">Refresh</button>
+      <span id="status" class="sdpi-status">not checked</span>
+    </div>
+    <div class="sdpi-item block diagnostics-settings">
+      <div class="sdpi-item-label">Result</div>
+      <pre id="diagnosticsOutput" class="sdpi-item-value textarea"></pre>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,173 @@
+{
+  "Name": "Stream Dock Voicemeeter",
+  "Description": "Control VB-Audio Voicemeeter (Standard/Banana/Potato) strips and buses directly.",
+  "Author": "local",
+  "Version": "0.1.0",
+  "SDKVersion": 1,
+  "CodePathWin": "plugin/StreamDockVoicemeeter.exe",
+  "Icon": "icons/plugin",
+  "CategoryIcon": "icons/plugin",
+  "Category": "Voicemeeter",
+  "PropertyInspectorPath": "property-inspector.html",
+  "OS": [
+    {
+      "Platform": "windows",
+      "MinimumVersion": "10"
+    }
+  ],
+  "Actions": [
+    {
+      "UUID": "local.streamdock.voicemeeter.gain",
+      "Name": "Voicemeeter Gain",
+      "Tooltip": "Adjust a Voicemeeter strip or bus gain directly.",
+      "Controllers": ["Keypad", "Knob"],
+      "Icon": "icons/gain",
+      "States": [{ "Title": "Gain", "Image": "icons/gain" }],
+      "PropertyInspectorPath": "property-inspector.html"
+    },
+    {
+      "UUID": "local.streamdock.voicemeeter.mute",
+      "Name": "Voicemeeter Mute",
+      "Tooltip": "Toggle mute for a Voicemeeter strip or bus directly.",
+      "Controllers": ["Keypad"],
+      "Icon": "icons/mute",
+      "States": [
+        { "Title": "Mute", "Image": "icons/mute" },
+        { "Title": "Muted", "Image": "icons/mute" }
+      ],
+      "PropertyInspectorPath": "property-inspector.html"
+    },
+    {
+      "UUID": "local.streamdock.voicemeeter.solo",
+      "Name": "Voicemeeter Solo",
+      "Tooltip": "Toggle solo for a Voicemeeter strip directly.",
+      "Controllers": ["Keypad"],
+      "Icon": "icons/solo",
+      "States": [
+        { "Title": "Solo", "Image": "icons/solo" },
+        { "Title": "Soloed", "Image": "icons/solo" }
+      ],
+      "PropertyInspectorPath": "property-inspector.html"
+    },
+    {
+      "UUID": "local.streamdock.voicemeeter.mono",
+      "Name": "Voicemeeter Mono",
+      "Tooltip": "Toggle mono downmix for a Voicemeeter strip or bus directly.",
+      "Controllers": ["Keypad"],
+      "Icon": "icons/mono",
+      "States": [
+        { "Title": "Mono", "Image": "icons/mono" },
+        { "Title": "Mono On", "Image": "icons/mono" }
+      ],
+      "PropertyInspectorPath": "property-inspector.html"
+    },
+    {
+      "UUID": "local.streamdock.voicemeeter.overview",
+      "Name": "Voicemeeter Overview",
+      "Tooltip": "Show selected Voicemeeter strip/bus gain and mute states.",
+      "Controllers": ["Keypad"],
+      "Icon": "icons/overview",
+      "States": [{ "Title": "", "Image": "icons/overview" }],
+      "PropertyInspectorPath": "property-inspector.html"
+    },
+    {
+      "UUID": "local.streamdock.voicemeeter.balance-dial",
+      "Name": "Voicemeeter Balance Dial",
+      "Tooltip": "Simulate a ChatMix-style balance by moving two Voicemeeter channel gains in opposite directions.",
+      "Controllers": ["Knob"],
+      "Icon": "icons/balance-dial",
+      "States": [{ "Title": "Balance", "Image": "icons/balance-dial" }],
+      "PropertyInspectorPath": "property-inspector.html"
+    },
+    {
+      "UUID": "local.streamdock.voicemeeter.output-device",
+      "Name": "Voicemeeter Output Device",
+      "Tooltip": "Switch a Voicemeeter bus hardware output device.",
+      "Controllers": ["Keypad"],
+      "Icon": "icons/output-device",
+      "States": [{ "Title": "Output", "Image": "icons/output-device" }],
+      "PropertyInspectorPath": "property-inspector.html"
+    },
+    {
+      "UUID": "local.streamdock.voicemeeter.rotate-output-device",
+      "Name": "Voicemeeter Rotate Output",
+      "Tooltip": "Rotate a Voicemeeter bus to the next hardware output device.",
+      "Controllers": ["Keypad", "Knob"],
+      "Icon": "icons/rotate-output-device",
+      "States": [{ "Title": "Output", "Image": "icons/rotate-output-device" }],
+      "PropertyInspectorPath": "property-inspector.html"
+    },
+    {
+      "UUID": "local.streamdock.voicemeeter.input-device",
+      "Name": "Voicemeeter Input Device",
+      "Tooltip": "Switch a Voicemeeter hardware strip input device.",
+      "Controllers": ["Keypad"],
+      "Icon": "icons/input-device",
+      "States": [{ "Title": "Input", "Image": "icons/input-device" }],
+      "PropertyInspectorPath": "property-inspector.html"
+    },
+    {
+      "UUID": "local.streamdock.voicemeeter.rotate-input-device",
+      "Name": "Voicemeeter Rotate Input",
+      "Tooltip": "Rotate a Voicemeeter hardware strip to the next input device.",
+      "Controllers": ["Keypad", "Knob"],
+      "Icon": "icons/rotate-input-device",
+      "States": [{ "Title": "Input", "Image": "icons/rotate-input-device" }],
+      "PropertyInspectorPath": "property-inspector.html"
+    },
+    {
+      "UUID": "local.streamdock.voicemeeter.macro-button",
+      "Name": "Voicemeeter Macro Button",
+      "Tooltip": "Trigger or toggle a Voicemeeter MacroButtons logical button.",
+      "Controllers": ["Keypad"],
+      "Icon": "icons/macro-button",
+      "States": [
+        { "Title": "Macro", "Image": "icons/macro-button" },
+        { "Title": "Macro On", "Image": "icons/macro-button" }
+      ],
+      "PropertyInspectorPath": "property-inspector.html"
+    },
+    {
+      "UUID": "local.streamdock.voicemeeter.recorder",
+      "Name": "Voicemeeter Recorder",
+      "Tooltip": "Toggle Voicemeeter's built-in recorder.",
+      "Controllers": ["Keypad"],
+      "Icon": "icons/recorder",
+      "States": [
+        { "Title": "Record", "Image": "icons/recorder" },
+        { "Title": "Recording", "Image": "icons/recorder" }
+      ],
+      "PropertyInspectorPath": "property-inspector.html"
+    },
+    {
+      "UUID": "local.streamdock.voicemeeter.eq-toggle",
+      "Name": "Voicemeeter EQ Toggle",
+      "Tooltip": "Toggle a Voicemeeter bus EQ on or off.",
+      "Controllers": ["Keypad"],
+      "Icon": "icons/eq-toggle",
+      "States": [
+        { "Title": "EQ", "Image": "icons/eq-toggle" },
+        { "Title": "EQ On", "Image": "icons/eq-toggle" }
+      ],
+      "PropertyInspectorPath": "property-inspector.html"
+    },
+    {
+      "UUID": "local.streamdock.voicemeeter.app-control",
+      "Name": "Voicemeeter App Control",
+      "Tooltip": "Show, restart, or shut down the Voicemeeter application.",
+      "Controllers": ["Keypad"],
+      "Icon": "icons/app-control",
+      "States": [{ "Title": "App", "Image": "icons/app-control" }],
+      "PropertyInspectorPath": "property-inspector.html"
+    },
+    {
+      "UUID": "local.streamdock.voicemeeter.diagnostics",
+      "Name": "Diagnostics",
+      "Tooltip": "Show Voicemeeter discovery, login, and request diagnostics.",
+      "Controllers": ["Keypad"],
+      "Icon": "icons/diagnostics",
+      "States": [{ "Title": "Diag", "Image": "icons/diagnostics" }],
+      "PropertyInspectorPath": "property-inspector.html"
+    }
+  ]
+}

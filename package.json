@@ -1,0 +1,17 @@
+{
+  "name": "streamdock-voicemeeter",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "check": "node --check property-inspector.js && node --check scripts/package-plugin.js && node -e \"JSON.parse(require('fs').readFileSync('manifest.json','utf8'))\"",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "install:local": "powershell -ExecutionPolicy Bypass -File scripts/install-local.ps1",
+    "package": "npm run check && node scripts/package-plugin.js",
+    "release:zip": "node scripts/release-auto.js",
+    "release:zip:windows": "powershell -ExecutionPolicy Bypass -File scripts/release.ps1",
+    "release:zip:linux": "bash scripts/build-release-in-linux-docker.sh",
+    "release:zip:linux-docker": "bash scripts/build-release-in-linux-docker.sh",
+    "release:zip:windows-docker": "powershell -ExecutionPolicy Bypass -File scripts/build-release-in-windows-docker.ps1",
+    "build:plugin": "dotnet build plugin-csharp/StreamDockVoicemeeter.csproj -p:EnableWindowsTargeting=true"
+  }
+}

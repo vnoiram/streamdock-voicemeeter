@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>StreamDockVoicemeeter</AssemblyName>
+    <RootNamespace>StreamDockVoicemeeter</RootNamespace>
+    <StreamDockSdkRoot Condition="'$(StreamDockSdkRoot)' == ''">..\..\StreamDockSDK</StreamDockSdkRoot>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(StreamDockSdkRoot)\StreamDockSDK\StreamDockSDK.csproj"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Win32.Registry" Version="5.0.0"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Assets\log4net.config">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>log4net.config</Link>
+    </Content>
+  </ItemGroup>
+
+</Project>
