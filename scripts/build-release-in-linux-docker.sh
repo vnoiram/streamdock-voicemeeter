@@ -10,9 +10,9 @@ runtime="${RUNTIME:-win-x64}"
 
 docker build -f "$root/Dockerfile.release.linux" -t "$image" "$root"
 docker run --rm \
-  -e CONFIGURATION="$configuration" \
-  -e RUNTIME="$runtime" \
-  -v "$workspace:/work" \
-  -w /work/streamdock-voicemeeter \
-  "$image" \
-  bash scripts/release.sh
+	-e CONFIGURATION="$configuration" \
+	-e RUNTIME="$runtime" \
+	-v "$workspace:/work" \
+	-w /work/streamdock-voicemeeter \
+	"$image" \
+	bash scripts/release.sh

@@ -8,27 +8,27 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
 
 if [[ -d "Sdk/StreamDockSDK" ]]; then
-  sdk_root="$(cd "Sdk/StreamDockSDK" && pwd)"
+	sdk_root="$(cd "Sdk/StreamDockSDK" && pwd)"
 elif [[ -d "../StreamDockSDK" ]]; then
-  sdk_root="$(cd "../StreamDockSDK" && pwd)"
+	sdk_root="$(cd "../StreamDockSDK" && pwd)"
 else
-  echo "StreamDockSDK was not found. Expected ../StreamDockSDK or Sdk/StreamDockSDK." >&2
-  exit 1
+	echo "StreamDockSDK was not found. Expected ../StreamDockSDK or Sdk/StreamDockSDK." >&2
+	exit 1
 fi
 
 dotnet restore plugin-csharp/StreamDockVoicemeeter.csproj \
-  -r "$runtime" \
-  -p:EnableWindowsTargeting=true \
-  -p:StreamDockSdkRoot="$sdk_root"
+	-r "$runtime" \
+	-p:EnableWindowsTargeting=true \
+	-p:StreamDockSdkRoot="$sdk_root"
 
 dotnet publish plugin-csharp/StreamDockVoicemeeter.csproj \
-  -c "$configuration" \
-  -r "$runtime" \
-  --self-contained true \
-  --no-restore \
-  -p:EnableWindowsTargeting=true \
-  -p:StreamDockSdkRoot="$sdk_root" \
-  -o dist/plugin
+	-c "$configuration" \
+	-r "$runtime" \
+	--self-contained true \
+	--no-restore \
+	-p:EnableWindowsTargeting=true \
+	-p:StreamDockSdkRoot="$sdk_root" \
+	-o dist/plugin
 
 npm run package
 
@@ -44,8 +44,8 @@ cp -R dist/stream-dock-voicemeeter.sdPlugin "$staging_dir/"
 cp scripts/install-local.ps1 "$staging_dir/"
 
 (
-  cd "$staging_dir"
-  zip -qr "$root/$zip_path" .
+	cd "$staging_dir"
+	zip -qr "$root/$zip_path" .
 )
 rm -rf "$staging_dir"
 echo "Wrote $zip_path"
