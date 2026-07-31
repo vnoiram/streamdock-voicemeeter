@@ -19,6 +19,21 @@
     diagnostics: 'local.streamdock.voicemeeter.diagnostics'
   };
 
+  var EDITIONS = ['standard', 'banana', 'potato'];
+
+  var STRIP_NAMES = {
+    standard: ['Hardware Input 1', 'Hardware Input 2', 'Voicemeeter Input'],
+    banana: ['Hardware Input 1', 'Hardware Input 2', 'Hardware Input 3', 'Voicemeeter Input', 'Voicemeeter Aux Input'],
+    potato: ['Hardware Input 1', 'Hardware Input 2', 'Hardware Input 3', 'Hardware Input 4', 'Hardware Input 5',
+      'Voicemeeter Input', 'Voicemeeter Aux Input', 'Voicemeeter VAIO3 Input']
+  };
+
+  var BUS_NAMES = {
+    standard: ['A1', 'B1'],
+    banana: ['A1', 'A2', 'A3', 'B1', 'B2'],
+    potato: ['A1', 'A2', 'A3', 'A4', 'A5', 'B1', 'B2', 'B3']
+  };
+
   var websocket = null;
   var actionContext = null;
   var propertyInspectorContext = null;
@@ -26,6 +41,7 @@
   var devices = [];
   var deviceRequestTimer = null;
   var settings = {
+    edition: 'potato',
     channelKind: 'strip',
     channelIndex: 0,
     step: 3,
@@ -84,10 +100,23 @@
     return kind === 'bus' ? 'bus' : 'strip';
   }
 
-  function normalizeIndex(value, fallback) {
+  function normalizeEdition(edition) {
+    return EDITIONS.indexOf(edition) !== -1 ? edition : 'potato';
+  }
+
+  function channelNames(kind, edition) {
+    var table = kind === 'bus' ? BUS_NAMES : STRIP_NAMES;
+    return table[normalizeEdition(edition)] || table.potato;
+  }
+
+  function maxIndexFor(kind, edition) {
+    return channelNames(kind, edition).length - 1;
+  }
+
+  function normalizeIndex(value, fallback, max) {
     var index = Math.round(Number(value));
     if (isNaN(index)) index = fallback;
-    return Math.max(0, Math.min(7, index));
+    return Math.max(0, Math.min(max, index));
   }
 
   function normalizeStep(value, fallback, min, max) {
@@ -96,17 +125,17 @@
     return Math.max(min, Math.min(max, step));
   }
 
-  function allChannelKeys() {
+  function allChannelKeys(edition) {
     var keys = [];
     ['strip', 'bus'].forEach(function (kind) {
-      for (var i = 0; i <= 7; i++) keys.push(kind + ':' + i);
+      channelNames(kind, edition).forEach(function (_, i) { keys.push(kind + ':' + i); });
     });
     return keys;
   }
 
-  function normalizeOverviewTargets(targets) {
-    var all = allChannelKeys();
-    if (!Array.isArray(targets)) return settings.overviewTargets.slice();
+  function normalizeOverviewTargets(targets, edition) {
+    var all = allChannelKeys(edition);
+    if (!Array.isArray(targets)) targets = settings.overviewTargets;
     var selected = targets.filter(function (target) { return all.indexOf(target) !== -1; });
     selected = selected.filter(function (target, index) { return selected.indexOf(target) === index; });
     return selected.length ? selected.slice(0, 6) : ['strip:0'];
@@ -114,17 +143,18 @@
 
   function normalizeSettings(raw) {
     var normalized = Object.assign({}, raw);
+    normalized.edition = normalizeEdition(normalized.edition);
     normalized.channelKind = normalizeChannelKind(normalized.channelKind);
-    normalized.channelIndex = normalizeIndex(normalized.channelIndex, 0);
+    normalized.channelIndex = normalizeIndex(normalized.channelIndex, 0, maxIndexFor(normalized.channelKind, normalized.edition));
     normalized.step = normalizeStep(normalized.step, 3, 0.1, 24);
     normalized.deviceId = normalized.deviceId || '';
     normalized.macroButtonIndex = Math.max(0, Math.min(79, Math.round(Number(normalized.macroButtonIndex) || 0)));
     normalized.appCommand = ['restart', 'shutdown'].indexOf(normalized.appCommand) !== -1 ? normalized.appCommand : 'show';
-    normalized.overviewTargets = normalizeOverviewTargets(normalized.overviewTargets);
+    normalized.overviewTargets = normalizeOverviewTargets(normalized.overviewTargets, normalized.edition);
     normalized.balancePrimaryKind = normalizeChannelKind(normalized.balancePrimaryKind);
-    normalized.balancePrimaryIndex = normalizeIndex(normalized.balancePrimaryIndex, 0);
+    normalized.balancePrimaryIndex = normalizeIndex(normalized.balancePrimaryIndex, 0, maxIndexFor(normalized.balancePrimaryKind, normalized.edition));
     normalized.balanceSecondaryKind = normalizeChannelKind(normalized.balanceSecondaryKind);
-    normalized.balanceSecondaryIndex = normalizeIndex(normalized.balanceSecondaryIndex, 1);
+    normalized.balanceSecondaryIndex = normalizeIndex(normalized.balanceSecondaryIndex, 1, maxIndexFor(normalized.balanceSecondaryKind, normalized.edition));
     normalized.balanceStep = normalizeStep(normalized.balanceStep, 1, 0.1, 12);
     normalized.titleLabel = normalized.titleLabel || '';
     normalized.invertKnob = normalized.invertKnob === true || normalized.invertKnob === 'true' ||
@@ -168,48 +198,76 @@
 
   function isInvertAware() { return isGain() || isBalanceDial() || isRotateOutputDevice() || isRotateInputDevice(); }
 
+  function effectiveChannelKind() {
+    if (isSolo() || isInputDevice() || isRotateInputDevice()) return 'strip';
+    if (isOutputDevice() || isRotateOutputDevice() || isEqToggle()) return 'bus';
+    return settings.channelKind;
+  }
+
   function channelIndexLabel() {
-    if (isSolo() || isInputDevice() || isRotateInputDevice()) return 'Strip index';
-    if (isOutputDevice() || isRotateOutputDevice() || isEqToggle()) return 'Bus index';
-    return settings.channelKind === 'bus' ? 'Bus index' : 'Strip index';
+    if (isChannelKindAware()) return 'Channel';
+    return effectiveChannelKind() === 'bus' ? 'Channel (Output)' : 'Channel (Input)';
+  }
+
+  function isEditionAware() {
+    return isChannelKindAware() || isChannelIndexAware() || isBalanceDial() || isOverview();
+  }
+
+  function renderChannelSelect(select, kind, currentIndex) {
+    if (!select) return;
+    var names = channelNames(kind, settings.edition);
+    select.innerHTML = '';
+    names.forEach(function (name, i) {
+      var option = document.createElement('option');
+      option.value = String(i);
+      option.textContent = name;
+      select.appendChild(option);
+    });
+    select.value = String(Math.max(0, Math.min(names.length - 1, currentIndex)));
   }
 
   function buildOverviewGrid() {
     var grid = byId('overviewGrid');
     grid.innerHTML = '';
-    allChannelKeys().forEach(function (key) {
-      var label = document.createElement('label');
-      var input = document.createElement('input');
-      input.type = 'checkbox';
-      input.name = 'overviewTarget';
-      input.value = key;
-      input.addEventListener('change', update);
-      label.appendChild(input);
-      label.appendChild(document.createTextNode(' ' + key.replace(':', ' ')));
-      grid.appendChild(label);
+    ['strip', 'bus'].forEach(function (kind) {
+      var prefix = kind === 'bus' ? 'Output' : 'Input';
+      channelNames(kind, settings.edition).forEach(function (name, i) {
+        var label = document.createElement('label');
+        var input = document.createElement('input');
+        input.type = 'checkbox';
+        input.name = 'overviewTarget';
+        input.value = kind + ':' + i;
+        input.addEventListener('change', update);
+        label.appendChild(input);
+        label.appendChild(document.createTextNode(' ' + prefix + ': ' + name));
+        grid.appendChild(label);
+      });
     });
   }
 
   function render() {
+    byId('edition').value = settings.edition;
     byId('channelKind').value = settings.channelKind;
-    byId('channelIndex').value = settings.channelIndex;
+    renderChannelSelect(byId('channelChannel'), effectiveChannelKind(), settings.channelIndex);
     byId('channelIndexLabel').textContent = channelIndexLabel();
     byId('step').value = settings.step;
     byId('deviceId').value = settings.deviceId;
     byId('macroButtonIndex').value = settings.macroButtonIndex;
     byId('appCommand').value = settings.appCommand;
     byId('balancePrimaryKind').value = settings.balancePrimaryKind;
-    byId('balancePrimaryIndex').value = settings.balancePrimaryIndex;
+    renderChannelSelect(byId('balancePrimaryChannel'), settings.balancePrimaryKind, settings.balancePrimaryIndex);
     byId('balanceSecondaryKind').value = settings.balanceSecondaryKind;
-    byId('balanceSecondaryIndex').value = settings.balanceSecondaryIndex;
+    renderChannelSelect(byId('balanceSecondaryChannel'), settings.balanceSecondaryKind, settings.balanceSecondaryIndex);
     byId('balanceStep').value = settings.balanceStep;
     byId('titleLabel').value = settings.titleLabel;
     byId('invertKnob').checked = !!settings.invertKnob;
+    buildOverviewGrid();
     Array.prototype.forEach.call(document.querySelectorAll('input[name="overviewTarget"]'), function (input) {
       input.checked = settings.overviewTargets.indexOf(input.value) !== -1;
     });
     renderDeviceOptions();
 
+    toggle('.edition-settings', !isEditionAware());
     toggle('.channel-kind-settings', !isChannelKindAware());
     toggle('.channel-index-settings', !isChannelIndexAware());
     toggle('.gain-step-settings', !isGain());
@@ -232,21 +290,25 @@
 
   function update() {
     if (!websocket || websocket.readyState !== WebSocket.OPEN || !actionContext) return;
+    settings.edition = normalizeEdition(byId('edition').value);
     settings.channelKind = normalizeChannelKind(byId('channelKind').value);
-    settings.channelIndex = normalizeIndex(byId('channelIndex').value, settings.channelIndex);
+    settings.channelIndex = normalizeIndex(byId('channelChannel').value, settings.channelIndex,
+      maxIndexFor(effectiveChannelKind(), settings.edition));
     settings.step = normalizeStep(byId('step').value, settings.step, 0.1, 24);
     settings.deviceId = byId('deviceId').value.trim();
     settings.macroButtonIndex = Math.max(0, Math.min(79, Math.round(Number(byId('macroButtonIndex').value) || 0)));
     settings.appCommand = byId('appCommand').value;
-    settings.overviewTargets = selectedOverviewTargets();
     settings.balancePrimaryKind = normalizeChannelKind(byId('balancePrimaryKind').value);
-    settings.balancePrimaryIndex = normalizeIndex(byId('balancePrimaryIndex').value, settings.balancePrimaryIndex);
+    settings.balancePrimaryIndex = normalizeIndex(byId('balancePrimaryChannel').value, settings.balancePrimaryIndex,
+      maxIndexFor(settings.balancePrimaryKind, settings.edition));
     settings.balanceSecondaryKind = normalizeChannelKind(byId('balanceSecondaryKind').value);
-    settings.balanceSecondaryIndex = normalizeIndex(byId('balanceSecondaryIndex').value, settings.balanceSecondaryIndex);
+    settings.balanceSecondaryIndex = normalizeIndex(byId('balanceSecondaryChannel').value, settings.balanceSecondaryIndex,
+      maxIndexFor(settings.balanceSecondaryKind, settings.edition));
     settings.balanceStep = normalizeStep(byId('balanceStep').value, settings.balanceStep, 0.1, 12);
     settings.titleLabel = byId('titleLabel').value.trim();
     settings.invertKnob = byId('invertKnob').checked;
-    byId('channelIndexLabel').textContent = channelIndexLabel();
+    settings.overviewTargets = selectedOverviewTargets();
+    render();
     websocket.send(JSON.stringify({ event: 'setSettings', context: actionContext, payload: settings }));
     if (isDeviceSelectAction() || isDeviceInfoAction()) requestDevices();
   }
@@ -261,7 +323,7 @@
     return normalizeOverviewTargets(Array.prototype.filter.call(
       document.querySelectorAll('input[name="overviewTarget"]'),
       function (input) { return input.checked; }
-    ).map(function (input) { return input.value; }));
+    ).map(function (input) { return input.value; }), settings.edition);
   }
 
   function requestDiagnostics() {
@@ -346,9 +408,8 @@
   }
 
   document.addEventListener('DOMContentLoaded', function () {
-    buildOverviewGrid();
-    ['channelKind', 'channelIndex', 'step', 'deviceId', 'macroButtonIndex', 'appCommand',
-      'balancePrimaryKind', 'balancePrimaryIndex', 'balanceSecondaryKind', 'balanceSecondaryIndex',
+    ['edition', 'channelKind', 'channelChannel', 'step', 'deviceId', 'macroButtonIndex', 'appCommand',
+      'balancePrimaryKind', 'balancePrimaryChannel', 'balanceSecondaryKind', 'balanceSecondaryChannel',
       'balanceStep', 'titleLabel', 'invertKnob'].forEach(function (id) {
       byId(id).addEventListener('change', update);
       byId(id).addEventListener('input', update);

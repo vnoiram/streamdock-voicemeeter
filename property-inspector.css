@@ -58,7 +58,7 @@ body {
 .checkbox-grid {
   display: grid;
   gap: 6px;
-  grid-template-columns: 1fr 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr;
 }
 
 .checkbox-grid label {

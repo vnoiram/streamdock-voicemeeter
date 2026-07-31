@@ -6,16 +6,24 @@
     <script src="property-inspector.js"></script>
   </head>
   <body>
+    <div class="sdpi-item edition-settings">
+      <div class="sdpi-item-label">Edition</div>
+      <select id="edition" class="sdpi-item-value">
+        <option value="standard">Voicemeeter Standard</option>
+        <option value="banana">Voicemeeter Banana</option>
+        <option value="potato">Voicemeeter Potato</option>
+      </select>
+    </div>
     <div class="sdpi-item channel-kind-settings">
-      <div class="sdpi-item-label">Channel</div>
+      <div class="sdpi-item-label">Direction</div>
       <select id="channelKind" class="sdpi-item-value">
-        <option value="strip">Strip (input)</option>
-        <option value="bus">Bus (output)</option>
+        <option value="strip">Input</option>
+        <option value="bus">Output</option>
       </select>
     </div>
     <div class="sdpi-item channel-index-settings">
-      <div class="sdpi-item-label" id="channelIndexLabel">Index</div>
-      <input id="channelIndex" class="sdpi-item-value" type="number" min="0" max="7" value="0">
+      <div class="sdpi-item-label" id="channelIndexLabel">Channel</div>
+      <select id="channelChannel" class="sdpi-item-value"></select>
     </div>
     <div class="sdpi-item gain-step-settings">
       <div class="sdpi-item-label">Step (dB)</div>
@@ -28,18 +36,18 @@
     <div class="sdpi-item balance-settings">
       <div class="sdpi-item-label">Primary</div>
       <select id="balancePrimaryKind" class="sdpi-item-value">
-        <option value="strip">Strip</option>
-        <option value="bus">Bus</option>
+        <option value="strip">Input</option>
+        <option value="bus">Output</option>
       </select>
-      <input id="balancePrimaryIndex" class="sdpi-item-value" type="number" min="0" max="7" value="0">
+      <select id="balancePrimaryChannel" class="sdpi-item-value"></select>
     </div>
     <div class="sdpi-item balance-settings">
       <div class="sdpi-item-label">Secondary</div>
       <select id="balanceSecondaryKind" class="sdpi-item-value">
-        <option value="strip">Strip</option>
-        <option value="bus">Bus</option>
+        <option value="strip">Input</option>
+        <option value="bus">Output</option>
       </select>
-      <input id="balanceSecondaryIndex" class="sdpi-item-value" type="number" min="0" max="7" value="1">
+      <select id="balanceSecondaryChannel" class="sdpi-item-value"></select>
     </div>
     <div class="sdpi-item balance-settings">
       <div class="sdpi-item-label">Diff step (dB)</div>
