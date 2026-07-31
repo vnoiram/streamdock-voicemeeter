@@ -11,7 +11,7 @@ namespace StreamDockVoicemeeter;
     PackageId = "local.streamdock.voicemeeter",
     SdkVersion = 1,
     Name = "Stream Dock Voicemeeter",
-    Version = "0.1.0",
+    Version = "0.1.1",
     Author = "local",
     Description = "Control VB-Audio Voicemeeter (Standard/Banana/Potato) strips and buses directly.",
     Category = "Voicemeeter",
