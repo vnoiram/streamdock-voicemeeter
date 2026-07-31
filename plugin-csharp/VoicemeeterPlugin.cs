@@ -89,7 +89,7 @@ public sealed class VoicemeeterPlugin : StreamDockPlugin
                     driver = device.DriverParamValue,
                     hardwareId = device.HardwareId
                 }).ToArray()
-            }, e.Action);
+            });
         }
         catch (Exception ex)
         {
@@ -99,7 +99,7 @@ public sealed class VoicemeeterPlugin : StreamDockPlugin
                 type = "error",
                 source = "devices",
                 message = ex.Message
-            }, e.Action);
+            });
         }
     }
 
@@ -114,7 +114,7 @@ public sealed class VoicemeeterPlugin : StreamDockPlugin
                 type = "macroStatus",
                 macroButtonIndex = index,
                 on
-            }, e.Action);
+            });
         }
         catch (Exception ex)
         {
@@ -124,7 +124,7 @@ public sealed class VoicemeeterPlugin : StreamDockPlugin
                 type = "error",
                 source = "macroStatus",
                 message = ex.Message
-            }, e.Action);
+            });
         }
     }
 
