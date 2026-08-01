@@ -103,8 +103,16 @@ public sealed class OverviewHandler(
 
     private void OnRotateTick()
     {
+        Log.Info($"Overview rotate tick context={Context} pageIndex={_pageIndex}");
         AdvancePage();
-        _ = RefreshAsync(false);
+        // Route through the shared, semaphore-guarded state refresh instead of calling
+        // RefreshAsync directly. The plugin has no locking around outbound WebSocket
+        // sends, and this timer runs independently of VoicemeeterStateService's own
+        // 1-second tick - two independent timers pushing SetImageAsync at once can
+        // silently lose one send. RefreshSharedStateAsync funnels through the same
+        // single semaphore-guarded refresh+notify path that tick already uses, so this
+        // rotation can never race it.
+        _ = RefreshSharedStateAsync();
     }
 
     private async Task RefreshAsync(bool showOk, bool useCache = true)
