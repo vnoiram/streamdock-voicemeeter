@@ -19,6 +19,7 @@ public sealed class InputDeviceHandler(
 {
     public override Task OnWillAppearAsync()
     {
+        Log.Info($"InputDevice willAppear context={Context} channelIndex={VmSettings.ChannelIndex} deviceId={VmSettings.DeviceId}");
         return SetTitleAsync(DisplayLabel);
     }
 
@@ -47,10 +48,11 @@ public sealed class InputDeviceHandler(
 
             await ShowOkAsync();
             await SetTitleAsync($"{DisplayLabel}\n{parsed.Value.Name}");
+            Log.Info($"InputDevice set context={Context} channelIndex={VmSettings.ChannelIndex} device={parsed.Value.Name}");
         }
         catch (Exception ex)
         {
-            await ShowErrorAsync(ex.Message);
+            await ShowErrorAsync(ex);
         }
     }
 

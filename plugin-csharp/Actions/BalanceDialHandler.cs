@@ -23,6 +23,8 @@ public sealed class BalanceDialHandler(
 
     public override Task OnWillAppearAsync()
     {
+        Log.Info($"BalanceDial willAppear context={Context} primary={VmSettings.BalancePrimaryKind}:{VmSettings.BalancePrimaryIndex} " +
+                 $"secondary={VmSettings.BalanceSecondaryKind}:{VmSettings.BalanceSecondaryIndex}");
         return SetTitleAsync(TitleLabel);
     }
 
@@ -81,10 +83,11 @@ public sealed class BalanceDialHandler(
 
             await SetTitleAsync($"{TitleLabel}\n{FormatDb(nextPrimary)}/{FormatDb(nextSecondary)}");
             await RefreshSharedStateAsync();
+            Log.Info($"BalanceDial applied context={Context} delta={delta} primary={nextPrimary} secondary={nextSecondary}");
         }
         catch (Exception ex)
         {
-            await ShowErrorAsync(ex.Message);
+            await ShowErrorAsync(ex);
         }
     }
 
@@ -102,10 +105,11 @@ public sealed class BalanceDialHandler(
 
             await SetTitleAsync($"{TitleLabel}\n0/0dB");
             await RefreshSharedStateAsync();
+            Log.Info($"BalanceDial reset context={Context}");
         }
         catch (Exception ex)
         {
-            await ShowErrorAsync(ex.Message);
+            await ShowErrorAsync(ex);
         }
     }
 

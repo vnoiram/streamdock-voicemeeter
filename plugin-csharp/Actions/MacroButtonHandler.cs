@@ -19,6 +19,7 @@ public sealed class MacroButtonHandler(
 {
     public override Task OnWillAppearAsync()
     {
+        Log.Info($"MacroButton willAppear context={Context} index={VmSettings.MacroButtonIndex}");
         return RefreshAsync();
     }
 
@@ -32,11 +33,17 @@ public sealed class MacroButtonHandler(
         try
         {
             var result = await Client.PressMacroButtonAsync(VmSettings.MacroButtonIndex, true, DisposeToken);
-            if (!result.Success) await ShowErrorAsync(result.ErrorSummary ?? "Voicemeeter macro button press failed");
+            if (!result.Success)
+            {
+                await ShowErrorAsync(result.ErrorSummary ?? "Voicemeeter macro button press failed");
+                return;
+            }
+
+            Log.Info($"MacroButton pressed context={Context} index={VmSettings.MacroButtonIndex}");
         }
         catch (Exception ex)
         {
-            await ShowErrorAsync(ex.Message);
+            await ShowErrorAsync(ex);
         }
     }
 
@@ -51,11 +58,12 @@ public sealed class MacroButtonHandler(
                 return;
             }
 
+            Log.Info($"MacroButton released context={Context} index={VmSettings.MacroButtonIndex}");
             await RefreshAsync();
         }
         catch (Exception ex)
         {
-            await ShowErrorAsync(ex.Message);
+            await ShowErrorAsync(ex);
         }
     }
 
@@ -69,7 +77,7 @@ public sealed class MacroButtonHandler(
         }
         catch (Exception ex)
         {
-            await ShowErrorAsync(ex.Message);
+            await ShowErrorAsync(ex);
         }
     }
 }

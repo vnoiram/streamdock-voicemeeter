@@ -19,6 +19,7 @@ public sealed class RecorderHandler(
 {
     public override Task OnWillAppearAsync()
     {
+        Log.Info($"Recorder willAppear context={Context}");
         return RefreshAsync();
     }
 
@@ -42,10 +43,11 @@ public sealed class RecorderHandler(
 
             await SetStateAsync(next ? 1 : 0);
             await SetTitleAsync(next ? "Recording" : "Record");
+            Log.Info($"Recorder toggled context={Context} recording={next}");
         }
         catch (Exception ex)
         {
-            await ShowErrorAsync(ex.Message);
+            await ShowErrorAsync(ex);
         }
     }
 
@@ -59,7 +61,7 @@ public sealed class RecorderHandler(
         }
         catch (Exception ex)
         {
-            await ShowErrorAsync(ex.Message);
+            await ShowErrorAsync(ex);
         }
     }
 }

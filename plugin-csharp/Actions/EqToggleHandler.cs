@@ -19,6 +19,7 @@ public sealed class EqToggleHandler(
 {
     public override Task OnWillAppearAsync()
     {
+        Log.Info($"EqToggle willAppear context={Context} channelIndex={VmSettings.ChannelIndex}");
         return RefreshAsync();
     }
 
@@ -42,10 +43,11 @@ public sealed class EqToggleHandler(
 
             await SetStateAsync(next ? 1 : 0);
             await SetTitleAsync($"{DisplayLabel}\n{(next ? "EQ On" : "EQ Off")}");
+            Log.Info($"EqToggle toggled context={Context} channelIndex={VmSettings.ChannelIndex} on={next}");
         }
         catch (Exception ex)
         {
-            await ShowErrorAsync(ex.Message);
+            await ShowErrorAsync(ex);
         }
     }
 
@@ -59,7 +61,7 @@ public sealed class EqToggleHandler(
         }
         catch (Exception ex)
         {
-            await ShowErrorAsync(ex.Message);
+            await ShowErrorAsync(ex);
         }
     }
 

@@ -19,6 +19,7 @@ public sealed class DiagnosticsHandler(
 {
     public override Task OnWillAppearAsync()
     {
+        Log.Info($"Diagnostics willAppear context={Context}");
         return SetTitleAsync("Diag");
     }
 
@@ -29,7 +30,14 @@ public sealed class DiagnosticsHandler(
 
     public override async Task OnKeyDownAsync()
     {
-        await SendDiagnosticsAsync();
-        await ShowOkAsync();
+        try
+        {
+            await SendDiagnosticsAsync();
+            await ShowOkAsync();
+        }
+        catch (Exception ex)
+        {
+            await ShowErrorAsync(ex);
+        }
     }
 }

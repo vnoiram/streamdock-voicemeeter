@@ -24,6 +24,7 @@ public sealed class RotateInputDeviceHandler(
 
     public override Task OnWillAppearAsync()
     {
+        Log.Info($"RotateInputDevice willAppear context={Context} channelIndex={VmSettings.ChannelIndex}");
         return SetTitleAsync(DisplayLabel);
     }
 
@@ -98,10 +99,11 @@ public sealed class RotateInputDeviceHandler(
             }
 
             await SetTitleAsync($"{DisplayLabel}\n{device.Name}");
+            Log.Info($"RotateInputDevice set context={Context} channelIndex={VmSettings.ChannelIndex} step={step} device={device.Name}");
         }
         catch (Exception ex)
         {
-            await ShowErrorAsync(ex.Message);
+            await ShowErrorAsync(ex);
         }
     }
 

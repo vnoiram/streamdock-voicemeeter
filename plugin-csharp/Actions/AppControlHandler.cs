@@ -19,6 +19,7 @@ public sealed class AppControlHandler(
 {
     public override Task OnWillAppearAsync()
     {
+        Log.Info($"AppControl willAppear context={Context} command={VmSettings.AppCommand}");
         return SetTitleAsync(TitleFor(VmSettings.AppCommand));
     }
 
@@ -45,10 +46,11 @@ public sealed class AppControlHandler(
             }
 
             await ShowOkAsync();
+            Log.Info($"AppControl triggered context={Context} command={commandName}");
         }
         catch (Exception ex)
         {
-            await ShowErrorAsync(ex.Message);
+            await ShowErrorAsync(ex);
         }
     }
 

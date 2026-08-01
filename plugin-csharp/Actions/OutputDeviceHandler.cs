@@ -19,6 +19,7 @@ public sealed class OutputDeviceHandler(
 {
     public override Task OnWillAppearAsync()
     {
+        Log.Info($"OutputDevice willAppear context={Context} channelKey={VmSettings.ChannelKey} deviceId={VmSettings.DeviceId}");
         return SetTitleAsync(Label);
     }
 
@@ -47,10 +48,11 @@ public sealed class OutputDeviceHandler(
 
             await ShowOkAsync();
             await SetTitleAsync($"{Label}\n{parsed.Value.Name}");
+            Log.Info($"OutputDevice set context={Context} channelKey={VmSettings.ChannelKey} device={parsed.Value.Name}");
         }
         catch (Exception ex)
         {
-            await ShowErrorAsync(ex.Message);
+            await ShowErrorAsync(ex);
         }
     }
 

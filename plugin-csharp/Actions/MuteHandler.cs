@@ -19,6 +19,7 @@ public sealed class MuteHandler(
 {
     public override Task OnWillAppearAsync()
     {
+        Log.Info($"Mute willAppear context={Context} channelKey={VmSettings.ChannelKey}");
         return RefreshAsync();
     }
 
@@ -43,10 +44,11 @@ public sealed class MuteHandler(
             await SetStateAsync(nextMuted ? 1 : 0);
             await ShowStateAsync(state with { Muted = nextMuted });
             await RefreshSharedStateAsync();
+            Log.Info($"Mute toggled context={Context} channelKey={VmSettings.ChannelKey} muted={nextMuted}");
         }
         catch (Exception ex)
         {
-            await ShowErrorAsync(ex.Message);
+            await ShowErrorAsync(ex);
         }
     }
 
@@ -60,7 +62,7 @@ public sealed class MuteHandler(
         }
         catch (Exception ex)
         {
-            await ShowErrorAsync(ex.Message);
+            await ShowErrorAsync(ex);
         }
     }
 

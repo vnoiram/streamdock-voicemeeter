@@ -19,6 +19,7 @@ public sealed class MonoHandler(
 {
     public override Task OnWillAppearAsync()
     {
+        Log.Info($"Mono willAppear context={Context} channelKey={VmSettings.ChannelKey}");
         return RefreshAsync();
     }
 
@@ -42,10 +43,11 @@ public sealed class MonoHandler(
 
             await SetStateAsync(next ? 1 : 0);
             await SetTitleAsync($"{Label}\n{(next ? "Mono On" : "Mono")}");
+            Log.Info($"Mono toggled context={Context} channelKey={VmSettings.ChannelKey} mono={next}");
         }
         catch (Exception ex)
         {
-            await ShowErrorAsync(ex.Message);
+            await ShowErrorAsync(ex);
         }
     }
 
@@ -59,7 +61,7 @@ public sealed class MonoHandler(
         }
         catch (Exception ex)
         {
-            await ShowErrorAsync(ex.Message);
+            await ShowErrorAsync(ex);
         }
     }
 }

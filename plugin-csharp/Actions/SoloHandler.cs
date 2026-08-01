@@ -19,6 +19,7 @@ public sealed class SoloHandler(
 {
     public override Task OnWillAppearAsync()
     {
+        Log.Info($"Solo willAppear context={Context} channelIndex={VmSettings.ChannelIndex}");
         return RefreshAsync();
     }
 
@@ -42,10 +43,11 @@ public sealed class SoloHandler(
 
             await SetStateAsync(next ? 1 : 0);
             await SetTitleAsync($"{DisplayLabel}\n{(next ? "Soloed" : "Solo")}");
+            Log.Info($"Solo toggled context={Context} channelIndex={VmSettings.ChannelIndex} soloed={next}");
         }
         catch (Exception ex)
         {
-            await ShowErrorAsync(ex.Message);
+            await ShowErrorAsync(ex);
         }
     }
 
@@ -59,7 +61,7 @@ public sealed class SoloHandler(
         }
         catch (Exception ex)
         {
-            await ShowErrorAsync(ex.Message);
+            await ShowErrorAsync(ex);
         }
     }
 

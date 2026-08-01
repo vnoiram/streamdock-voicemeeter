@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using log4net;
 using StreamDockSDK;
@@ -96,6 +97,18 @@ public abstract class VoicemeeterActionHandler : ActionHandler
         });
     }
 
+    /// <summary>
+    ///     Same as <see cref="ShowErrorAsync(string)" />, but logs the full exception (type,
+    ///     message, stack trace) instead of just its message, so failures caught in a catch
+    ///     block can actually be diagnosed from streamdock-voicemeeter.log instead of only
+    ///     showing a one-line summary on the key/property inspector.
+    /// </summary>
+    protected Task ShowErrorAsync(Exception ex, [CallerMemberName] string? memberName = null)
+    {
+        Log.Warn($"Action exception context={Context} channelKey={VmSettings.ChannelKey} member={memberName}: {ex}");
+        return ShowErrorAsync(ex.Message);
+    }
+
     protected async Task SendDiagnosticsAsync(string? replyContext = null)
     {
         var diagnostics = await Client.BuildDiagnosticsAsync(DisposeToken);
@@ -136,7 +149,7 @@ public abstract class VoicemeeterActionHandler : ActionHandler
         }
         catch (Exception ex)
         {
-            Log.Warn($"Action devices request failed context={Context} replyContext={replyContext}: {ex.Message}");
+            Log.Warn($"Action devices request failed context={Context} replyContext={replyContext}: {ex}");
             await Connection.SendToPropertyInspectorAsync(replyContext, new
             {
                 type = "error",
@@ -160,6 +173,7 @@ public abstract class VoicemeeterActionHandler : ActionHandler
         }
         catch (Exception ex)
         {
+            Log.Warn($"Action macroStatus request failed context={Context} replyContext={replyContext}: {ex}");
             await Connection.SendToPropertyInspectorAsync(replyContext, new
             {
                 type = "error",

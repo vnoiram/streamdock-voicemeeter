@@ -88,10 +88,11 @@ public sealed class GainHandler(
 
             await ShowStateAsync(new VoicemeeterChannelState(next, state.Muted));
             await RefreshSharedStateAsync();
+            Log.Info($"Gain applied context={Context} channelKey={VmSettings.ChannelKey} delta={delta} newGain={next}");
         }
         catch (Exception ex)
         {
-            await ShowErrorAsync(ex.Message);
+            await ShowErrorAsync(ex);
         }
     }
 
@@ -110,10 +111,11 @@ public sealed class GainHandler(
 
             await ShowStateAsync(state with { Muted = nextMuted });
             await RefreshSharedStateAsync();
+            Log.Info($"Gain dial-mute toggled context={Context} channelKey={VmSettings.ChannelKey} muted={nextMuted}");
         }
         catch (Exception ex)
         {
-            await ShowErrorAsync(ex.Message);
+            await ShowErrorAsync(ex);
         }
     }
 
@@ -126,7 +128,7 @@ public sealed class GainHandler(
         }
         catch (Exception ex)
         {
-            await ShowErrorAsync(ex.Message);
+            await ShowErrorAsync(ex);
         }
     }
 
