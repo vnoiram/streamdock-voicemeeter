@@ -56,6 +56,8 @@ public sealed class OverviewHandler(
         UpdateSettings(settings);
         _pageIndex = 0;
         RestartRotateTimer();
+        Log.Info($"Overview settingsChanged context={Context} targets={string.Join(",", VmSettings.OverviewTargets)} " +
+                 $"pageSize={VmSettings.OverviewPageSize} rotateMode={VmSettings.OverviewRotateMode}");
         return RefreshAsync(false, false);
     }
 
@@ -138,10 +140,12 @@ public sealed class OverviewHandler(
             var page = states.Skip(_pageIndex * pageSize).Take(pageSize).ToArray();
             await SetTitleAsync("");
             await SetImageAsync(VoicemeeterOverviewRenderer.BuildImageDataUrl(page, _pageIndex + 1, totalPages));
+            Log.Info($"Overview redrawn context={Context} shownCount={page.Length} page={_pageIndex + 1}/{totalPages} useCache={useCache}");
             if (showOk) await ShowOkAsync();
         }
         catch (Exception ex)
         {
+            Log.Warn($"Overview refresh failed context={Context} useCache={useCache}: {ex}");
             await ShowErrorAsync(ex.Message);
         }
         finally
