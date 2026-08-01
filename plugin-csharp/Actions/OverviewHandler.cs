@@ -17,9 +17,12 @@ public sealed class OverviewHandler(
     string context,
     Dictionary<string, object>? settings) : VoicemeeterActionHandler(connection, context, settings)
 {
+    private static readonly TimeSpan SettingsPollInterval = TimeSpan.FromSeconds(5);
+
     private readonly object _rotateLock = new();
     private readonly SemaphoreSlim _redrawLock = new(1, 1);
     private Timer? _rotateTimer;
+    private Timer? _settingsPollTimer;
     private int _pageIndex;
 
     public override Task OnWillAppearAsync()
@@ -27,12 +30,14 @@ public sealed class OverviewHandler(
         Log.Info($"Overview willAppear context={Context} targets={string.Join(",", VmSettings.OverviewTargets)}");
         _pageIndex = 0;
         RestartRotateTimer();
+        StartSettingsPoll();
         return RefreshSharedStateAsync();
     }
 
     public override Task OnWillDisappearAsync()
     {
         StopRotateTimer();
+        StopSettingsPoll();
         return Task.CompletedTask;
     }
 
@@ -41,6 +46,7 @@ public sealed class OverviewHandler(
         if (disposing)
         {
             StopRotateTimer();
+            StopSettingsPoll();
             _redrawLock.Dispose();
         }
         base.Dispose(disposing);
@@ -113,6 +119,37 @@ public sealed class OverviewHandler(
         Log.Info($"Overview rotate tick context={Context} pageIndex={_pageIndex}");
         AdvancePage();
         _ = RefreshAsync(false);
+    }
+
+    /// <summary>
+    ///     Periodically re-requests this action's settings from the host instead of relying
+    ///     solely on it pushing a didReceiveSettings event after every property inspector edit.
+    ///     Logs showed the property inspector's own connection receiving settings updates while
+    ///     the plugin's separate connection never got a corresponding event for the same edits,
+    ///     so edits could sit unapplied on screen until something else (e.g. a page switch)
+    ///     forced a resync. This bounds how stale the display can get to one poll interval.
+    /// </summary>
+    private void StartSettingsPoll()
+    {
+        StopSettingsPoll();
+        lock (_rotateLock)
+        {
+            _settingsPollTimer = new Timer(_ => OnSettingsPollTick(), null, SettingsPollInterval, SettingsPollInterval);
+        }
+    }
+
+    private void StopSettingsPoll()
+    {
+        lock (_rotateLock)
+        {
+            _settingsPollTimer?.Dispose();
+            _settingsPollTimer = null;
+        }
+    }
+
+    private void OnSettingsPollTick()
+    {
+        _ = Connection.GetSettingsAsync(Context);
     }
 
     /// <summary>
