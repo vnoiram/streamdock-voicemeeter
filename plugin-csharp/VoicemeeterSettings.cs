@@ -92,14 +92,14 @@ public sealed record VoicemeeterSettings(
     private static readonly string[] StripAbbrBanana = ["HW In 1", "HW In 2", "HW In 3", "VM In", "AUX"];
     private static readonly string[] StripAbbrPotato = ["HW In 1", "HW In 2", "HW In 3", "HW In 4", "HW In 5", "VM In", "AUX", "VAIO3"];
 
-    private static readonly string[] BusAbbrStandard = ["A1", "B1"];
-    private static readonly string[] BusAbbrBanana = ["A1", "A2", "A3", "B1", "B2"];
-    private static readonly string[] BusAbbrPotato = ["A1", "A2", "A3", "A4", "A5", "B1", "B2", "B3"];
+    private static readonly string[] BusAbbrStandard = ["Out A1", "Out B1"];
+    private static readonly string[] BusAbbrBanana = ["Out A1", "Out A2", "Out A3", "Out B1", "Out B2"];
+    private static readonly string[] BusAbbrPotato = ["Out A1", "Out A2", "Out A3", "Out A4", "Out A5", "Out B1", "Out B2", "Out B3"];
 
     /// <summary>
     ///     Short label matching the channel names shown in the property inspector (Hardware
-    ///     Input N, Voicemeeter Input, Voicemeeter Aux Input, Voicemeeter VAIO3 Input, A1-A5,
-    ///     B1-B3), abbreviated to fit the small overview grid cells. Falls back to the generic
+    ///     Input N, Voicemeeter Input, Voicemeeter Aux Input, Voicemeeter VAIO3 Input, Out A1-A5,
+    ///     Out B1-B3), abbreviated to fit the small overview grid cells. Falls back to the generic
     ///     "S0"/"B0" form for an edition/index combination outside the known tables (e.g. edition
     ///     not detected yet).
     /// </summary>
