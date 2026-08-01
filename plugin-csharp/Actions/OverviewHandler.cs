@@ -57,6 +57,8 @@ public sealed class OverviewHandler(
     public override async Task OnKeyDownAsync()
     {
         await RefreshSharedStateAsync();
+        Log.Info($"Overview keyDown context={Context} rotateMode={VmSettings.OverviewRotateMode} " +
+                 $"targetCount={VmSettings.OverviewTargets.Count} pageSize={VmSettings.OverviewPageSize} totalPages={TotalPages}");
         if (VmSettings.OverviewRotateMode == "press" && TotalPages > 1)
         {
             AdvancePage();
@@ -79,12 +81,15 @@ public sealed class OverviewHandler(
     private void RestartRotateTimer()
     {
         StopRotateTimer();
+        Log.Info($"Overview restartRotateTimer context={Context} rotateMode={VmSettings.OverviewRotateMode} " +
+                 $"targetCount={VmSettings.OverviewTargets.Count} pageSize={VmSettings.OverviewPageSize} totalPages={TotalPages}");
         if (VmSettings.OverviewRotateMode != "time" || TotalPages <= 1) return;
         var interval = TimeSpan.FromSeconds(VmSettings.OverviewRotateSeconds);
         lock (_rotateLock)
         {
             _rotateTimer = new Timer(_ => OnRotateTick(), null, interval, interval);
         }
+        Log.Info($"Overview rotate timer started context={Context} intervalSeconds={VmSettings.OverviewRotateSeconds}");
     }
 
     private void StopRotateTimer()

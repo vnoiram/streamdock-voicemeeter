@@ -1,4 +1,5 @@
 using System.Text.Json;
+using log4net;
 
 namespace StreamDockVoicemeeter;
 
@@ -21,6 +22,8 @@ public sealed record VoicemeeterSettings(
     string? TitleLabel,
     bool InvertKnob)
 {
+    private static readonly ILog Log = LogManager.GetLogger(typeof(VoicemeeterSettings));
+
     public const int MaxChannelIndex = 7;
     public const int MaxOverviewPageSize = 6;
 
@@ -32,7 +35,10 @@ public sealed record VoicemeeterSettings(
         var deviceId = ReadString(settings, "deviceId") ?? "";
         var macroButtonIndex = Math.Clamp(ReadInt(settings, "macroButtonIndex") ?? 0, 0, 79);
         var appCommand = NormalizeAppCommand(ReadString(settings, "appCommand"));
-        var overviewTargets = NormalizeOverviewTargets(ReadStringList(settings, "overviewTargets"), channelKind, channelIndex);
+        var rawOverviewTargets = ReadStringList(settings, "overviewTargets");
+        var overviewTargets = NormalizeOverviewTargets(rawOverviewTargets, channelKind, channelIndex);
+        Log.Info($"Parsed overviewTargets raw={(rawOverviewTargets == null ? "<null>" : string.Join(",", rawOverviewTargets))} " +
+                 $"resolved=[{string.Join(",", overviewTargets)}] count={overviewTargets.Count}");
         var overviewPageSize = Math.Clamp(ReadInt(settings, "overviewPageSize") ?? 4, 1, MaxOverviewPageSize);
         var overviewRotateMode = NormalizeOverviewRotateMode(ReadString(settings, "overviewRotateMode"));
         var overviewRotateSeconds = Math.Clamp(ReadDouble(settings, "overviewRotateSeconds") ?? 3.0, 1.0, 30.0);
@@ -141,13 +147,32 @@ public sealed record VoicemeeterSettings(
     {
         if (settings == null || !settings.TryGetValue(key, out var value)) return null;
         if (value is IEnumerable<string> stringValues) return stringValues;
-        if (value is JsonElement { ValueKind: JsonValueKind.Array } element)
+        if (value is JsonElement element)
         {
-            return element.EnumerateArray()
-                .Where(item => item.ValueKind == JsonValueKind.String)
-                .Select(item => item.GetString() ?? "");
+            if (element.ValueKind == JsonValueKind.Array)
+                return element.EnumerateArray()
+                    .Where(item => item.ValueKind == JsonValueKind.String)
+                    .Select(item => item.GetString() ?? "");
+
+            // Some hosts relay array-valued settings as a JSON-encoded string
+            // instead of a native JSON array; try to recover the array from it.
+            if (element.ValueKind == JsonValueKind.String)
+            {
+                var text = element.GetString();
+                if (!string.IsNullOrWhiteSpace(text))
+                    try
+                    {
+                        var parsed = JsonSerializer.Deserialize<string[]>(text);
+                        if (parsed != null) return parsed;
+                    }
+                    catch (JsonException)
+                    {
+                        Log.Warn($"Setting '{key}' looked like a JSON string but did not parse as a string array: {text}");
+                    }
+            }
         }
 
+        Log.Warn($"Setting '{key}' had unrecognized shape (kind={(value as JsonElement?)?.ValueKind.ToString() ?? value?.GetType().FullName}); falling back to default");
         return null;
     }
 
