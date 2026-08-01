@@ -51,7 +51,12 @@ public sealed class OverviewHandler(
         UpdateSettings(settings);
         _pageIndex = 0;
         RestartRotateTimer();
-        return RefreshAsync(false, false);
+        // Route through the shared, semaphore-guarded refresh (see OnRotateTick) instead of
+        // calling RefreshAsync directly. Editing settings in the property inspector can land
+        // at the same moment as the 1-second state tick or a rotate-timer tick; calling
+        // SetImageAsync directly here let that concurrent send win the race and leave the
+        // stale pre-edit content on screen.
+        return RefreshSharedStateAsync();
     }
 
     public override async Task OnKeyDownAsync()
