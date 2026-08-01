@@ -61,8 +61,16 @@
     invertKnob: false
   };
 
+  var sendCount = 0;
+  var recvCount = 0;
+
   function byId(id) {
     return document.getElementById(id);
+  }
+
+  function setPiStatus(text) {
+    var el = byId('piStatus');
+    if (el) el.textContent = text;
   }
 
   function connectElgatoStreamDeckSocket(inPort, inPluginUUID, inRegisterEvent, inInfo, inActionInfo) {
@@ -71,19 +79,29 @@
     propertyInspectorContext = inPluginUUID;
     currentAction = actionInfo.action || '';
     settings = Object.assign(settings, normalizeSettings(actionInfo.payload && actionInfo.payload.settings || {}));
+    setPiStatus('init context=' + (actionContext || '<empty>') + ' action=' + (currentAction || '<empty>'));
 
     websocket = new WebSocket('ws://127.0.0.1:' + inPort);
     websocket.onopen = function () {
       websocket.send(JSON.stringify({ event: inRegisterEvent, uuid: inPluginUUID }));
+      setPiStatus('connected, context=' + (actionContext || '<empty>'));
       render();
       requestDiagnostics();
       requestDevices();
       requestMacroStatus();
     };
+    websocket.onclose = function () {
+      setPiStatus('websocket closed');
+    };
+    websocket.onerror = function () {
+      setPiStatus('websocket error');
+    };
     websocket.onmessage = function (event) {
       var message = parseJson(event.data, {});
       if (message.event === 'didReceiveSettings') {
+        recvCount += 1;
         settings = Object.assign(settings, normalizeSettings(message.payload && message.payload.settings || {}));
+        setPiStatus('received #' + recvCount + ' overviewTargets=' + settings.overviewTargets.length + ' at ' + new Date().toLocaleTimeString());
         render();
       } else if (message.event === 'sendToPropertyInspector') {
         handlePluginMessage(message.payload || {});
@@ -299,7 +317,10 @@
   }
 
   function update() {
-    if (!websocket || websocket.readyState !== WebSocket.OPEN || !actionContext) return;
+    if (!websocket || websocket.readyState !== WebSocket.OPEN || !actionContext) {
+      setPiStatus('BLOCKED ws=' + (websocket ? websocket.readyState : 'null') + ' context=' + (actionContext || '<empty>'));
+      return;
+    }
     settings.edition = normalizeEdition(byId('edition').value);
     settings.channelKind = normalizeChannelKind(byId('channelKind').value);
     settings.channelIndex = normalizeIndex(byId('channelChannel').value, settings.channelIndex,
@@ -323,6 +344,8 @@
     settings.overviewTargets = selectedOverviewTargets();
     render();
     websocket.send(JSON.stringify({ event: 'setSettings', context: actionContext, payload: settings }));
+    sendCount += 1;
+    setPiStatus('sent #' + sendCount + ' overviewTargets=' + settings.overviewTargets.length + ' at ' + new Date().toLocaleTimeString());
     if (isDeviceSelectAction() || isDeviceInfoAction()) requestDevices();
   }
 
