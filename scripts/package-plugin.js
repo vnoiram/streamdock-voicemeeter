@@ -30,4 +30,14 @@ for (const item of include) {
   copyRecursive(path.join(root, item), path.join(outDir, item));
 }
 copyRecursive(path.join(root, 'dist', 'plugin'), path.join(outDir, 'plugin'));
+
+// The property inspector runs in the Stream Dock host's own embedded webview, which can
+// cache property-inspector.js/.css by URL across plugin updates. Append a version query
+// string so every release forces a fresh fetch instead of silently reusing stale JS/CSS.
+const htmlPath = path.join(outDir, 'property-inspector.html');
+const html = fs.readFileSync(htmlPath, 'utf8')
+  .replace('property-inspector.css"', `property-inspector.css?v=${manifest.Version}"`)
+  .replace('property-inspector.js"', `property-inspector.js?v=${manifest.Version}"`);
+fs.writeFileSync(htmlPath, html);
+
 console.log(outDir);
