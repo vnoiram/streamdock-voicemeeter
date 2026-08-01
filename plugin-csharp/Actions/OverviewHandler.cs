@@ -193,13 +193,14 @@ public sealed class OverviewHandler(
 
     private async Task<IReadOnlyList<VoicemeeterOverviewState>> FetchLiveStatesAsync()
     {
+        var edition = VoicemeeterRuntime.State.Current?.Edition ?? VoicemeeterEdition.Unknown;
         var results = new List<VoicemeeterOverviewState>();
         foreach (var key in VmSettings.OverviewTargets)
         {
             var parsed = VoicemeeterSettings.ParseChannelKey(key);
             if (parsed == null) continue;
             var (kind, index) = parsed.Value;
-            var shortLabel = VoicemeeterSettings.ShortLabelFor(kind, index);
+            var shortLabel = VoicemeeterSettings.AbbreviatedLabelFor(kind, index, edition);
             try
             {
                 var state = await Client.GetChannelStateAsync(kind, index, DisposeToken);

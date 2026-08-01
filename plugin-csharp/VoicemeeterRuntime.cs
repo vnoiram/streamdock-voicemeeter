@@ -40,7 +40,7 @@ public sealed class VoicemeeterStateService : IDisposable
                 for (var index = 0; index <= VoicemeeterSettings.MaxChannelIndex; index++)
                 {
                     var key = VoicemeeterSettings.BuildChannelKey(kind, index);
-                    var shortLabel = VoicemeeterSettings.ShortLabelFor(kind, index);
+                    var shortLabel = VoicemeeterSettings.AbbreviatedLabelFor(kind, index, edition);
                     try
                     {
                         var state = await _client.GetChannelStateAsync(kind, index, cancellationToken);

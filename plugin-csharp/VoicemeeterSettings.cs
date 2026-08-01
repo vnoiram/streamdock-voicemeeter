@@ -88,6 +88,33 @@ public sealed record VoicemeeterSettings(
         return $"{prefix}{channelIndex}";
     }
 
+    private static readonly string[] StripAbbrStandard = ["HW In 1", "HW In 2", "VM In"];
+    private static readonly string[] StripAbbrBanana = ["HW In 1", "HW In 2", "HW In 3", "VM In", "AUX"];
+    private static readonly string[] StripAbbrPotato = ["HW In 1", "HW In 2", "HW In 3", "HW In 4", "HW In 5", "VM In", "AUX", "VAIO3"];
+
+    private static readonly string[] BusAbbrStandard = ["A1", "B1"];
+    private static readonly string[] BusAbbrBanana = ["A1", "A2", "A3", "B1", "B2"];
+    private static readonly string[] BusAbbrPotato = ["A1", "A2", "A3", "A4", "A5", "B1", "B2", "B3"];
+
+    /// <summary>
+    ///     Short label matching the channel names shown in the property inspector (Hardware
+    ///     Input N, Voicemeeter Input, Voicemeeter Aux Input, Voicemeeter VAIO3 Input, A1-A5,
+    ///     B1-B3), abbreviated to fit the small overview grid cells. Falls back to the generic
+    ///     "S0"/"B0" form for an edition/index combination outside the known tables (e.g. edition
+    ///     not detected yet).
+    /// </summary>
+    public static string AbbreviatedLabelFor(string channelKind, int channelIndex, VoicemeeterEdition edition)
+    {
+        var isBus = string.Equals(channelKind, "bus", StringComparison.OrdinalIgnoreCase);
+        var table = edition switch
+        {
+            VoicemeeterEdition.Standard => isBus ? BusAbbrStandard : StripAbbrStandard,
+            VoicemeeterEdition.Banana => isBus ? BusAbbrBanana : StripAbbrBanana,
+            _ => isBus ? BusAbbrPotato : StripAbbrPotato
+        };
+        return channelIndex >= 0 && channelIndex < table.Length ? table[channelIndex] : ShortLabelFor(channelKind, channelIndex);
+    }
+
     private static string NormalizeChannelKind(string? kind)
     {
         return string.Equals(kind, "bus", StringComparison.OrdinalIgnoreCase) ? "bus" : "strip";
