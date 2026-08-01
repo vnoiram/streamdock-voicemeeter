@@ -18,6 +18,7 @@ public sealed class OverviewHandler(
     Dictionary<string, object>? settings) : VoicemeeterActionHandler(connection, context, settings)
 {
     private readonly object _rotateLock = new();
+    private readonly SemaphoreSlim _redrawLock = new(1, 1);
     private Timer? _rotateTimer;
     private int _pageIndex;
 
@@ -37,7 +38,11 @@ public sealed class OverviewHandler(
 
     protected override void Dispose(bool disposing)
     {
-        if (disposing) StopRotateTimer();
+        if (disposing)
+        {
+            StopRotateTimer();
+            _redrawLock.Dispose();
+        }
         base.Dispose(disposing);
     }
 
@@ -51,12 +56,7 @@ public sealed class OverviewHandler(
         UpdateSettings(settings);
         _pageIndex = 0;
         RestartRotateTimer();
-        // Route through the shared, semaphore-guarded refresh (see OnRotateTick) instead of
-        // calling RefreshAsync directly. Editing settings in the property inspector can land
-        // at the same moment as the 1-second state tick or a rotate-timer tick; calling
-        // SetImageAsync directly here let that concurrent send win the race and leave the
-        // stale pre-edit content on screen.
-        return RefreshSharedStateAsync();
+        return RefreshAsync(false, false);
     }
 
     public override async Task OnKeyDownAsync()
@@ -110,18 +110,23 @@ public sealed class OverviewHandler(
     {
         Log.Info($"Overview rotate tick context={Context} pageIndex={_pageIndex}");
         AdvancePage();
-        // Route through the shared, semaphore-guarded state refresh instead of calling
-        // RefreshAsync directly. The plugin has no locking around outbound WebSocket
-        // sends, and this timer runs independently of VoicemeeterStateService's own
-        // 1-second tick - two independent timers pushing SetImageAsync at once can
-        // silently lose one send. RefreshSharedStateAsync funnels through the same
-        // single semaphore-guarded refresh+notify path that tick already uses, so this
-        // rotation can never race it.
-        _ = RefreshSharedStateAsync();
+        _ = RefreshAsync(false);
     }
 
+    /// <summary>
+    ///     Redraws this key's image. Every trigger (settings change, key press, rotate tick,
+    ///     shared-state change) funnels through this single method, serialized on
+    ///     <see cref="_redrawLock" />, because the plugin has no locking around outbound
+    ///     WebSocket sends: two of these triggers can land at nearly the same moment (e.g. a
+    ///     rotate tick and the 1-second shared-state tick, or two rapid settings changes), and
+    ///     an unserialized second SetImageAsync call can silently lose the race and never reach
+    ///     the display. Serializing here (instead of only reading a stale cache) still shows the
+    ///     latest settings immediately, since VmSettings is already updated by the time each
+    ///     queued call gets its turn.
+    /// </summary>
     private async Task RefreshAsync(bool showOk, bool useCache = true)
     {
+        await _redrawLock.WaitAsync();
         try
         {
             var states = useCache
@@ -138,6 +143,10 @@ public sealed class OverviewHandler(
         catch (Exception ex)
         {
             await ShowErrorAsync(ex.Message);
+        }
+        finally
+        {
+            _redrawLock.Release();
         }
     }
 
