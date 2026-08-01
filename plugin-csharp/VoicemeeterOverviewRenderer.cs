@@ -5,7 +5,7 @@ namespace StreamDockVoicemeeter;
 
 public static class VoicemeeterOverviewRenderer
 {
-    public static string BuildImageDataUrl(IReadOnlyList<VoicemeeterOverviewState> states)
+    public static string BuildImageDataUrl(IReadOnlyList<VoicemeeterOverviewState> states, int pageNumber = 1, int totalPages = 1)
     {
         var cells = states.Count <= 1 ? 1 : states.Count <= 2 ? 2 : states.Count <= 4 ? 4 : 6;
         var columns = cells == 1 ? 1 : 2;
@@ -37,6 +37,11 @@ public static class VoicemeeterOverviewRenderer
             if (row > 0 && column == 0) svg.Append($"""<line x1="8" y1="{y}" x2="136" y2="{y}" stroke="#303846" stroke-width="1"/>""");
             svg.Append($"""<text x="{centerX}" y="{labelY}" text-anchor="middle" fill="#9aa6b2" font-family="Arial, sans-serif" font-size="{labelSize}" font-weight="700">{Escape(state.ShortLabel)}</text>""");
             svg.Append($"""<text x="{centerX}" y="{valueY}" text-anchor="middle" fill="{color}" font-family="Arial, sans-serif" font-size="{valueSize}" font-weight="800">{Escape(state.ValueText)}</text>""");
+        }
+
+        if (totalPages > 1)
+        {
+            svg.Append($"""<text x="{width - 6}" y="{height - 6}" text-anchor="end" fill="#5b6572" font-family="Arial, sans-serif" font-size="12" font-weight="700">{pageNumber}/{totalPages}</text>""");
         }
 
         svg.Append("</svg>");

@@ -2,7 +2,7 @@
   "Name": "Stream Dock Voicemeeter",
   "Description": "Control VB-Audio Voicemeeter (Standard/Banana/Potato) strips and buses directly.",
   "Author": "local",
-  "Version": "0.1.2",
+  "Version": "0.1.3",
   "SDKVersion": 1,
   "CodePathWin": "plugin/StreamDockVoicemeeter.exe",
   "Icon": "icons/plugin",

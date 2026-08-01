@@ -49,6 +49,9 @@
     macroButtonIndex: 0,
     appCommand: 'show',
     overviewTargets: ['strip:0', 'strip:1', 'strip:2', 'strip:3'],
+    overviewPageSize: 4,
+    overviewRotateMode: 'time',
+    overviewRotateSeconds: 3,
     balancePrimaryKind: 'strip',
     balancePrimaryIndex: 0,
     balanceSecondaryKind: 'strip',
@@ -151,6 +154,9 @@
     normalized.macroButtonIndex = Math.max(0, Math.min(79, Math.round(Number(normalized.macroButtonIndex) || 0)));
     normalized.appCommand = ['restart', 'shutdown'].indexOf(normalized.appCommand) !== -1 ? normalized.appCommand : 'show';
     normalized.overviewTargets = normalizeOverviewTargets(normalized.overviewTargets, normalized.edition);
+    normalized.overviewPageSize = Math.max(1, Math.min(6, Math.round(Number(normalized.overviewPageSize)) || 4));
+    normalized.overviewRotateMode = normalized.overviewRotateMode === 'press' ? 'press' : 'time';
+    normalized.overviewRotateSeconds = normalizeStep(normalized.overviewRotateSeconds, 3, 1, 30);
     normalized.balancePrimaryKind = normalizeChannelKind(normalized.balancePrimaryKind);
     normalized.balancePrimaryIndex = normalizeIndex(normalized.balancePrimaryIndex, 0, maxIndexFor(normalized.balancePrimaryKind, normalized.edition));
     normalized.balanceSecondaryKind = normalizeChannelKind(normalized.balanceSecondaryKind);
@@ -265,6 +271,9 @@
     Array.prototype.forEach.call(document.querySelectorAll('input[name="overviewTarget"]'), function (input) {
       input.checked = settings.overviewTargets.indexOf(input.value) !== -1;
     });
+    byId('overviewPageSize').value = settings.overviewPageSize;
+    byId('overviewRotateMode').value = settings.overviewRotateMode;
+    byId('overviewRotateSeconds').value = settings.overviewRotateSeconds;
     renderDeviceOptions();
 
     toggle('.edition-settings', !isEditionAware());
@@ -272,6 +281,7 @@
     toggle('.channel-index-settings', !isChannelIndexAware());
     toggle('.gain-step-settings', !isGain());
     toggle('.overview-settings', !isOverview());
+    toggle('.overview-rotate-time-settings', !(isOverview() && settings.overviewRotateMode === 'time'));
     toggle('.balance-settings', !isBalanceDial());
     toggle('.device-select-settings', !isDeviceSelectAction());
     toggle('.device-info-settings', !isDeviceInfoAction());
@@ -298,6 +308,9 @@
     settings.deviceId = byId('deviceId').value.trim();
     settings.macroButtonIndex = Math.max(0, Math.min(79, Math.round(Number(byId('macroButtonIndex').value) || 0)));
     settings.appCommand = byId('appCommand').value;
+    settings.overviewPageSize = Math.max(1, Math.min(6, Math.round(Number(byId('overviewPageSize').value)) || settings.overviewPageSize));
+    settings.overviewRotateMode = byId('overviewRotateMode').value === 'press' ? 'press' : 'time';
+    settings.overviewRotateSeconds = normalizeStep(byId('overviewRotateSeconds').value, settings.overviewRotateSeconds, 1, 30);
     settings.balancePrimaryKind = normalizeChannelKind(byId('balancePrimaryKind').value);
     settings.balancePrimaryIndex = normalizeIndex(byId('balancePrimaryChannel').value, settings.balancePrimaryIndex,
       maxIndexFor(settings.balancePrimaryKind, settings.edition));
@@ -409,6 +422,7 @@
 
   document.addEventListener('DOMContentLoaded', function () {
     ['edition', 'channelKind', 'channelChannel', 'step', 'deviceId', 'macroButtonIndex', 'appCommand',
+      'overviewPageSize', 'overviewRotateMode', 'overviewRotateSeconds',
       'balancePrimaryKind', 'balancePrimaryChannel', 'balanceSecondaryKind', 'balanceSecondaryChannel',
       'balanceStep', 'titleLabel', 'invertKnob'].forEach(function (id) {
       byId(id).addEventListener('change', update);

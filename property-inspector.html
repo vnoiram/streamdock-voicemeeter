@@ -33,6 +33,21 @@
       <div class="sdpi-item-label">Overview</div>
       <div class="sdpi-item-value checkbox-grid" id="overviewGrid"></div>
     </div>
+    <div class="sdpi-item overview-settings">
+      <div class="sdpi-item-label">Per page</div>
+      <input id="overviewPageSize" class="sdpi-item-value" type="number" min="1" max="6" value="4">
+    </div>
+    <div class="sdpi-item overview-settings">
+      <div class="sdpi-item-label">Rotate</div>
+      <select id="overviewRotateMode" class="sdpi-item-value">
+        <option value="time">Auto (timed)</option>
+        <option value="press">On key press</option>
+      </select>
+    </div>
+    <div class="sdpi-item overview-settings overview-rotate-time-settings">
+      <div class="sdpi-item-label">Interval (s)</div>
+      <input id="overviewRotateSeconds" class="sdpi-item-value" type="number" min="1" max="30" step="0.5" value="3">
+    </div>
     <div class="sdpi-item balance-settings">
       <div class="sdpi-item-label">Primary</div>
       <select id="balancePrimaryKind" class="sdpi-item-value">

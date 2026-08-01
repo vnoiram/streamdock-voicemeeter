@@ -10,6 +10,9 @@ public sealed record VoicemeeterSettings(
     int MacroButtonIndex,
     string AppCommand,
     IReadOnlyList<string> OverviewTargets,
+    int OverviewPageSize,
+    string OverviewRotateMode,
+    double OverviewRotateSeconds,
     string BalancePrimaryKind,
     int BalancePrimaryIndex,
     string BalanceSecondaryKind,
@@ -19,6 +22,7 @@ public sealed record VoicemeeterSettings(
     bool InvertKnob)
 {
     public const int MaxChannelIndex = 7;
+    public const int MaxOverviewPageSize = 6;
 
     public static VoicemeeterSettings FromDictionary(Dictionary<string, object>? settings)
     {
@@ -29,6 +33,9 @@ public sealed record VoicemeeterSettings(
         var macroButtonIndex = Math.Clamp(ReadInt(settings, "macroButtonIndex") ?? 0, 0, 79);
         var appCommand = NormalizeAppCommand(ReadString(settings, "appCommand"));
         var overviewTargets = NormalizeOverviewTargets(ReadStringList(settings, "overviewTargets"), channelKind, channelIndex);
+        var overviewPageSize = Math.Clamp(ReadInt(settings, "overviewPageSize") ?? 4, 1, MaxOverviewPageSize);
+        var overviewRotateMode = NormalizeOverviewRotateMode(ReadString(settings, "overviewRotateMode"));
+        var overviewRotateSeconds = Math.Clamp(ReadDouble(settings, "overviewRotateSeconds") ?? 3.0, 1.0, 30.0);
         var balancePrimaryKind = NormalizeChannelKind(ReadString(settings, "balancePrimaryKind"));
         var balancePrimaryIndex = Math.Clamp(ReadInt(settings, "balancePrimaryIndex") ?? 0, 0, MaxChannelIndex);
         var balanceSecondaryKind = NormalizeChannelKind(ReadString(settings, "balanceSecondaryKind"));
@@ -45,6 +52,9 @@ public sealed record VoicemeeterSettings(
             macroButtonIndex,
             appCommand,
             overviewTargets,
+            overviewPageSize,
+            overviewRotateMode,
+            overviewRotateSeconds,
             balancePrimaryKind,
             balancePrimaryIndex,
             balanceSecondaryKind,
@@ -85,6 +95,11 @@ public sealed record VoicemeeterSettings(
             "shutdown" => "shutdown",
             _ => "show"
         };
+    }
+
+    private static string NormalizeOverviewRotateMode(string? mode)
+    {
+        return string.Equals(mode, "press", StringComparison.OrdinalIgnoreCase) ? "press" : "time";
     }
 
     private static IReadOnlyList<string> NormalizeOverviewTargets(IEnumerable<string>? targets, string fallbackKind, int fallbackIndex)

@@ -17,10 +17,28 @@ public sealed class OverviewHandler(
     string context,
     Dictionary<string, object>? settings) : VoicemeeterActionHandler(connection, context, settings)
 {
+    private readonly object _rotateLock = new();
+    private Timer? _rotateTimer;
+    private int _pageIndex;
+
     public override Task OnWillAppearAsync()
     {
         Log.Info($"Overview willAppear context={Context} targets={string.Join(",", VmSettings.OverviewTargets)}");
+        _pageIndex = 0;
+        RestartRotateTimer();
         return RefreshSharedStateAsync();
+    }
+
+    public override Task OnWillDisappearAsync()
+    {
+        StopRotateTimer();
+        return Task.CompletedTask;
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) StopRotateTimer();
+        base.Dispose(disposing);
     }
 
     public override Task UpdateDisplayAsync()
@@ -31,13 +49,57 @@ public sealed class OverviewHandler(
     public override Task OnSettingsChangedAsync(Dictionary<string, object> settings)
     {
         UpdateSettings(settings);
+        _pageIndex = 0;
+        RestartRotateTimer();
         return RefreshAsync(false, false);
     }
 
     public override async Task OnKeyDownAsync()
     {
         await RefreshSharedStateAsync();
-        await ShowOkAsync();
+        if (VmSettings.OverviewRotateMode == "press" && TotalPages > 1)
+        {
+            AdvancePage();
+            await RefreshAsync(false);
+        }
+        else
+        {
+            await ShowOkAsync();
+        }
+    }
+
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling(VmSettings.OverviewTargets.Count / (double)VmSettings.OverviewPageSize));
+
+    private void AdvancePage()
+    {
+        var totalPages = TotalPages;
+        _pageIndex = totalPages <= 0 ? 0 : (_pageIndex + 1) % totalPages;
+    }
+
+    private void RestartRotateTimer()
+    {
+        StopRotateTimer();
+        if (VmSettings.OverviewRotateMode != "time" || TotalPages <= 1) return;
+        var interval = TimeSpan.FromSeconds(VmSettings.OverviewRotateSeconds);
+        lock (_rotateLock)
+        {
+            _rotateTimer = new Timer(_ => OnRotateTick(), null, interval, interval);
+        }
+    }
+
+    private void StopRotateTimer()
+    {
+        lock (_rotateLock)
+        {
+            _rotateTimer?.Dispose();
+            _rotateTimer = null;
+        }
+    }
+
+    private void OnRotateTick()
+    {
+        AdvancePage();
+        _ = RefreshAsync(false);
     }
 
     private async Task RefreshAsync(bool showOk, bool useCache = true)
@@ -47,8 +109,12 @@ public sealed class OverviewHandler(
             var states = useCache
                 ? TryGetCachedStates() ?? await FetchLiveStatesAsync()
                 : await FetchLiveStatesAsync();
+            var pageSize = VmSettings.OverviewPageSize;
+            var totalPages = Math.Max(1, (int)Math.Ceiling(states.Count / (double)pageSize));
+            if (_pageIndex >= totalPages) _pageIndex = 0;
+            var page = states.Skip(_pageIndex * pageSize).Take(pageSize).ToArray();
             await SetTitleAsync("");
-            await SetImageAsync(VoicemeeterOverviewRenderer.BuildImageDataUrl(states));
+            await SetImageAsync(VoicemeeterOverviewRenderer.BuildImageDataUrl(page, _pageIndex + 1, totalPages));
             if (showOk) await ShowOkAsync();
         }
         catch (Exception ex)
