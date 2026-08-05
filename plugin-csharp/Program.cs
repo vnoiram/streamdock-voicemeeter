@@ -2,6 +2,9 @@ using StreamDockVoicemeeter;
 
 Directory.SetCurrentDirectory(AppContext.BaseDirectory);
 
+AppDomain.CurrentDomain.ProcessExit += (_, _) => VoicemeeterRuntime.Dispose();
+Console.CancelKeyPress += (_, _) => VoicemeeterRuntime.Dispose();
+
 try
 {
     using var plugin = new VoicemeeterPlugin();

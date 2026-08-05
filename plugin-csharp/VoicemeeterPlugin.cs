@@ -26,6 +26,18 @@ public sealed class VoicemeeterPlugin : StreamDockPlugin
 {
     private static readonly ILog Log = LogManager.GetLogger(typeof(VoicemeeterPlugin));
 
+    public override void Dispose()
+    {
+        try
+        {
+            base.Dispose();
+        }
+        finally
+        {
+            VoicemeeterRuntime.Dispose();
+        }
+    }
+
     public override void RegisterEventHandlers()
     {
         base.RegisterEventHandlers();

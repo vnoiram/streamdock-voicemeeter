@@ -6,6 +6,15 @@ public static class VoicemeeterRuntime
 {
     public static VoicemeeterClient Client { get; } = new();
     public static VoicemeeterStateService State { get; } = new(Client);
+
+    private static int _disposed;
+
+    public static void Dispose()
+    {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        State.Dispose();
+        Client.Dispose();
+    }
 }
 
 public sealed class VoicemeeterStateService : IDisposable
