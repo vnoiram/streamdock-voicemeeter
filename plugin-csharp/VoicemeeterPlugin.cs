@@ -11,7 +11,7 @@ namespace StreamDockVoicemeeter;
     PackageId = "local.streamdock.voicemeeter",
     SdkVersion = 1,
     Name = "Stream Dock Voicemeeter",
-    Version = "0.1.15",
+    Version = "0.1.16",
     Author = "local",
     Description = "Control VB-Audio Voicemeeter (Standard/Banana/Potato) strips and buses directly.",
     Category = "Voicemeeter",
@@ -25,6 +25,7 @@ namespace StreamDockVoicemeeter;
 public sealed class VoicemeeterPlugin : StreamDockPlugin
 {
     private static readonly ILog Log = LogManager.GetLogger(typeof(VoicemeeterPlugin));
+    private int _shutdownRequested;
 
     public override void Dispose()
     {
@@ -47,7 +48,21 @@ public sealed class VoicemeeterPlugin : StreamDockPlugin
             HandlerManager.DiscoverHandlers(Assembly.GetExecutingAssembly());
         };
         Connection.SendToPlugin += async (_, e) => await OnFallbackSendToPluginAsync(e);
-        Connection.Disconnected += (_, _) => Log.Warn("Disconnected from Stream Dock");
+        Connection.Disconnected += (_, _) =>
+        {
+            Log.Warn("Disconnected from Stream Dock; shutting down plugin process");
+            RequestProcessExit();
+        };
+    }
+
+    private void RequestProcessExit()
+    {
+        if (Interlocked.Exchange(ref _shutdownRequested, 1) != 0) return;
+        ThreadPool.QueueUserWorkItem(_ =>
+        {
+            Dispose();
+            Environment.Exit(0);
+        });
     }
 
     private async Task OnFallbackSendToPluginAsync(SendToPluginEventArgs e)
