@@ -5,10 +5,28 @@ Directory.SetCurrentDirectory(AppContext.BaseDirectory);
 AppDomain.CurrentDomain.ProcessExit += (_, _) => VoicemeeterRuntime.Dispose();
 Console.CancelKeyPress += (_, _) => VoicemeeterRuntime.Dispose();
 
+VoicemeeterPlugin? plugin = null;
+
 try
 {
-    using var plugin = new VoicemeeterPlugin();
-    await plugin.RunAsync(args);
+    using var instanceGuard = SingleInstanceGuard.Acquire(() =>
+    {
+        try
+        {
+            plugin?.Dispose();
+        }
+        finally
+        {
+            VoicemeeterRuntime.Dispose();
+            Environment.Exit(0);
+        }
+    });
+
+    plugin = new VoicemeeterPlugin();
+    using (plugin)
+    {
+        await plugin.RunAsync(args);
+    }
 }
 catch (Exception ex)
 {
