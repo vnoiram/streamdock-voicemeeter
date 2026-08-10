@@ -4,7 +4,8 @@ public sealed class SingleInstanceGuard : IDisposable
 {
     private const string MutexName = @"Local\StreamDockVoicemeeterPlugin.Instance";
     private const string ShutdownEventName = @"Local\StreamDockVoicemeeterPlugin.Shutdown";
-    private static readonly TimeSpan ExistingInstanceExitTimeout = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan GracefulExitTimeout = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan ForcedExitTimeout = TimeSpan.FromSeconds(5);
 
     private readonly CancellationTokenSource _disposeCancellation = new();
     private readonly EventWaitHandle _shutdownEvent;
@@ -21,7 +22,9 @@ public sealed class SingleInstanceGuard : IDisposable
 
     public static SingleInstanceGuard Acquire(Action shutdownRequested)
     {
-        SignalExistingInstance();
+        var shutdownSignaled = SignalExistingInstance();
+        if (shutdownSignaled) Thread.Sleep(GracefulExitTimeout);
+        TerminateExistingInstances();
 
         var mutex = new Mutex(false, MutexName);
         var ownsMutex = false;
@@ -29,7 +32,7 @@ public sealed class SingleInstanceGuard : IDisposable
         {
             try
             {
-                ownsMutex = mutex.WaitOne(ExistingInstanceExitTimeout);
+                ownsMutex = mutex.WaitOne(GracefulExitTimeout);
             }
             catch (AbandonedMutexException)
             {
@@ -38,8 +41,21 @@ public sealed class SingleInstanceGuard : IDisposable
 
             if (!ownsMutex)
             {
+                TerminateExistingInstances();
+                try
+                {
+                    ownsMutex = mutex.WaitOne(ForcedExitTimeout);
+                }
+                catch (AbandonedMutexException)
+                {
+                    ownsMutex = true;
+                }
+            }
+
+            if (!ownsMutex)
+            {
                 throw new InvalidOperationException(
-                    "Another Stream Dock Voicemeeter plugin process is still running and did not exit after a shutdown request.");
+                    "Another Stream Dock Voicemeeter plugin process is still running and did not exit after shutdown requests.");
             }
 
             var shutdownEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ShutdownEventName);
@@ -80,15 +96,60 @@ public sealed class SingleInstanceGuard : IDisposable
         _mutex.Dispose();
     }
 
-    private static void SignalExistingInstance()
+    private static bool SignalExistingInstance()
     {
         try
         {
             using var existingShutdownEvent = EventWaitHandle.OpenExisting(ShutdownEventName);
             existingShutdownEvent.Set();
+            return true;
         }
         catch (WaitHandleCannotBeOpenedException)
         {
+            return false;
+        }
+    }
+
+    private static void TerminateExistingInstances()
+    {
+        var currentProcess = System.Diagnostics.Process.GetCurrentProcess();
+        var currentPath = Environment.ProcessPath;
+        if (string.IsNullOrWhiteSpace(currentPath)) return;
+
+        foreach (var process in System.Diagnostics.Process.GetProcessesByName(currentProcess.ProcessName))
+        {
+            using (process)
+            {
+                if (process.Id == currentProcess.Id) continue;
+                if (!IsSameExecutable(process, currentPath)) continue;
+
+                try
+                {
+                    process.Kill(entireProcessTree: true);
+                    process.WaitForExit((int)ForcedExitTimeout.TotalMilliseconds);
+                }
+                catch
+                {
+                    // Stale process cleanup is best-effort; the mutex wait below remains authoritative.
+                }
+            }
+        }
+    }
+
+    private static bool IsSameExecutable(System.Diagnostics.Process process, string currentPath)
+    {
+        try
+        {
+            var processPath = process.MainModule?.FileName;
+            return !string.IsNullOrWhiteSpace(processPath) &&
+                   string.Equals(
+                       Path.GetFullPath(processPath),
+                       Path.GetFullPath(currentPath),
+                       StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
         }
     }
 

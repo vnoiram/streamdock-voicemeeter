@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -12,14 +13,22 @@ public sealed class VoicemeeterClient : IDisposable
     private const int MacroModeDefault = 0x00000000;
     private const int MacroModeStateOnly = 0x00000002;
 
-    private readonly SemaphoreSlim _callLock = new(1, 1);
+    private readonly BlockingCollection<NativeCall> _nativeCalls = new();
+    private readonly Thread _nativeThread;
     private int _disposed;
+    private bool _loginAttempted;
     private bool _loggedIn;
     private VoicemeeterEdition _lastEdition = VoicemeeterEdition.Unknown;
 
     public VoicemeeterClient()
     {
         VoicemeeterNativeLibrary.EnsureResolverRegistered();
+        _nativeThread = new Thread(RunNativeCalls)
+        {
+            IsBackground = false,
+            Name = "Voicemeeter Remote API"
+        };
+        _nativeThread.Start();
     }
 
     public string? DllPath => VoicemeeterNativeLibrary.ResolvedPath;
@@ -30,14 +39,13 @@ public sealed class VoicemeeterClient : IDisposable
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
-        _callLock.Wait();
         try
         {
-            if (_loggedIn)
+            if (_loginAttempted)
             {
                 try
                 {
-                    var code = NativeMethods.VBVMR_Logout();
+                    var code = RunDuringDispose(() => NativeMethods.VBVMR_Logout());
                     Log.Info($"Voicemeeter logout code={code}");
                 }
                 catch (Exception ex)
@@ -46,12 +54,15 @@ public sealed class VoicemeeterClient : IDisposable
                 }
 
                 _loggedIn = false;
+                _loginAttempted = false;
             }
         }
         finally
         {
-            _callLock.Release();
-            _callLock.Dispose();
+            _nativeCalls.CompleteAdding();
+            if (!_nativeThread.Join(TimeSpan.FromSeconds(2)))
+                Log.Warn("Voicemeeter native API thread did not stop within timeout");
+            _nativeCalls.Dispose();
         }
     }
 
@@ -62,6 +73,7 @@ public sealed class VoicemeeterClient : IDisposable
             if (_loggedIn) return VoicemeeterOperationResult.Ok();
 
             var code = NativeMethods.VBVMR_Login();
+            _loginAttempted = true;
             Log.Info($"Voicemeeter login code={code} dll={DllPath ?? "(not resolved)"}");
             if (code == 0)
             {
@@ -78,6 +90,7 @@ public sealed class VoicemeeterClient : IDisposable
                     Log.Info($"Voicemeeter RunVoicemeeter type={runType} code={runCode}");
                     Thread.Sleep(1500);
                     var retryCode = NativeMethods.VBVMR_Login();
+                    _loginAttempted = true;
                     if (retryCode == 0)
                     {
                         _loggedIn = true;
@@ -452,21 +465,71 @@ public sealed class VoicemeeterClient : IDisposable
     private async Task<T> RunAsync<T>(Func<T> action, CancellationToken cancellationToken)
     {
         ThrowIfDisposed();
-        await _callLock.WaitAsync(cancellationToken);
+        var completion = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var call = new NativeCall<T>(action, completion, cancellationToken);
+        using var registration = cancellationToken.Register(() => completion.TrySetCanceled(cancellationToken));
         try
         {
-            ThrowIfDisposed();
-            return await Task.Run(action, cancellationToken);
+            _nativeCalls.Add(call, cancellationToken);
         }
-        finally
+        catch (InvalidOperationException ex)
         {
-            _callLock.Release();
+            throw new ObjectDisposedException(nameof(VoicemeeterClient), ex);
         }
+
+        return await completion.Task.ConfigureAwait(false);
     }
 
     private void ThrowIfDisposed()
     {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+    }
+
+    private T RunDuringDispose<T>(Func<T> action)
+    {
+        if (Thread.CurrentThread.ManagedThreadId == _nativeThread.ManagedThreadId) return action();
+
+        var completion = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _nativeCalls.Add(new NativeCall<T>(action, completion, CancellationToken.None));
+        return completion.Task.GetAwaiter().GetResult();
+    }
+
+    private void RunNativeCalls()
+    {
+        foreach (var call in _nativeCalls.GetConsumingEnumerable()) call.Execute();
+    }
+
+    private abstract class NativeCall
+    {
+        public abstract void Execute();
+    }
+
+    private sealed class NativeCall<T>(
+        Func<T> action,
+        TaskCompletionSource<T> completion,
+        CancellationToken cancellationToken) : NativeCall
+    {
+        public override void Execute()
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                completion.TrySetCanceled(cancellationToken);
+                return;
+            }
+
+            try
+            {
+                completion.TrySetResult(action());
+            }
+            catch (OperationCanceledException ex) when (ex.CancellationToken == cancellationToken)
+            {
+                completion.TrySetCanceled(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                completion.TrySetException(ex);
+            }
+        }
     }
 }
 

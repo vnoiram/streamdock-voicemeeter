@@ -31,11 +31,11 @@ public sealed class VoicemeeterPlugin : StreamDockPlugin
     {
         try
         {
-            base.Dispose();
+            VoicemeeterRuntime.Dispose();
         }
         finally
         {
-            VoicemeeterRuntime.Dispose();
+            base.Dispose();
         }
     }
 
