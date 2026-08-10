@@ -13,6 +13,7 @@ public sealed class VoicemeeterClient : IDisposable
     private const int MacroModeStateOnly = 0x00000002;
 
     private readonly SemaphoreSlim _callLock = new(1, 1);
+    private int _disposed;
     private bool _loggedIn;
     private VoicemeeterEdition _lastEdition = VoicemeeterEdition.Unknown;
 
@@ -27,21 +28,31 @@ public sealed class VoicemeeterClient : IDisposable
 
     public void Dispose()
     {
-        if (_loggedIn)
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+
+        _callLock.Wait();
+        try
         {
-            try
+            if (_loggedIn)
             {
-                NativeMethods.VBVMR_Logout();
-            }
-            catch (Exception ex)
-            {
-                Log.Warn($"Voicemeeter logout failed: {ex.Message}");
-            }
+                try
+                {
+                    var code = NativeMethods.VBVMR_Logout();
+                    Log.Info($"Voicemeeter logout code={code}");
+                }
+                catch (Exception ex)
+                {
+                    Log.Warn($"Voicemeeter logout failed: {ex.Message}");
+                }
 
-            _loggedIn = false;
+                _loggedIn = false;
+            }
         }
-
-        _callLock.Dispose();
+        finally
+        {
+            _callLock.Release();
+            _callLock.Dispose();
+        }
     }
 
     public Task<VoicemeeterOperationResult> EnsureConnectedAsync(CancellationToken cancellationToken = default)
@@ -440,15 +451,22 @@ public sealed class VoicemeeterClient : IDisposable
 
     private async Task<T> RunAsync<T>(Func<T> action, CancellationToken cancellationToken)
     {
+        ThrowIfDisposed();
         await _callLock.WaitAsync(cancellationToken);
         try
         {
+            ThrowIfDisposed();
             return await Task.Run(action, cancellationToken);
         }
         finally
         {
             _callLock.Release();
         }
+    }
+
+    private void ThrowIfDisposed()
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
     }
 }
 

@@ -22,8 +22,10 @@ public sealed class VoicemeeterStateService : IDisposable
     private static readonly ILog Log = LogManager.GetLogger(typeof(VoicemeeterStateService));
     private static readonly string[] ChannelKinds = ["strip", "bus"];
     private readonly VoicemeeterClient _client;
+    private readonly CancellationTokenSource _disposeCancellation = new();
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
     private readonly Timer _timer;
+    private int _disposed;
 
     public VoicemeeterStateService(VoicemeeterClient client)
     {
@@ -37,13 +39,19 @@ public sealed class VoicemeeterStateService : IDisposable
 
     public async Task<VoicemeeterSnapshot> RefreshAsync(CancellationToken cancellationToken = default)
     {
-        await _refreshLock.WaitAsync(cancellationToken);
+        ThrowIfDisposed();
+        using var linkedCancellation =
+            CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _disposeCancellation.Token);
+        var token = linkedCancellation.Token;
+
+        await _refreshLock.WaitAsync(token);
         try
         {
+            ThrowIfDisposed();
             VoicemeeterSnapshot snapshot;
             try
             {
-                var edition = await _client.GetEditionAsync(cancellationToken);
+                var edition = await _client.GetEditionAsync(token);
                 var states = new Dictionary<string, VoicemeeterOverviewState>(StringComparer.OrdinalIgnoreCase);
                 foreach (var kind in ChannelKinds)
                 for (var index = 0; index <= VoicemeeterSettings.MaxChannelIndex; index++)
@@ -52,7 +60,7 @@ public sealed class VoicemeeterStateService : IDisposable
                     var shortLabel = VoicemeeterSettings.AbbreviatedLabelFor(kind, index, edition);
                     try
                     {
-                        var state = await _client.GetChannelStateAsync(kind, index, cancellationToken);
+                        var state = await _client.GetChannelStateAsync(kind, index, token);
                         states[key] = new VoicemeeterOverviewState(key, shortLabel, state.GainDb, state.Muted, null);
                     }
                     catch (Exception ex)
@@ -82,7 +90,12 @@ public sealed class VoicemeeterStateService : IDisposable
 
     public void Dispose()
     {
-        _timer.Dispose();
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+
+        _disposeCancellation.Cancel();
+        using var timerDisposed = new ManualResetEvent(false);
+        if (_timer.Dispose(timerDisposed)) timerDisposed.WaitOne(TimeSpan.FromSeconds(2));
+        _disposeCancellation.Dispose();
         _refreshLock.Dispose();
     }
 
@@ -90,8 +103,15 @@ public sealed class VoicemeeterStateService : IDisposable
     {
         try
         {
+            if (Volatile.Read(ref _disposed) != 0) return;
             var dirty = Current == null || await _client.IsParametersDirtyAsync();
-            if (dirty) await RefreshAsync();
+            if (dirty && Volatile.Read(ref _disposed) == 0) await RefreshAsync(_disposeCancellation.Token);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (ObjectDisposedException)
+        {
         }
         catch (Exception ex)
         {
@@ -112,5 +132,10 @@ public sealed class VoicemeeterStateService : IDisposable
             {
                 Log.Warn($"Voicemeeter state listener failed: {ex.Message}");
             }
+    }
+
+    private void ThrowIfDisposed()
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
     }
 }
