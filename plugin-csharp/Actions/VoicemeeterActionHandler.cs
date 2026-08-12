@@ -25,11 +25,11 @@ public abstract class VoicemeeterActionHandler : ActionHandler
         VmSettings = VoicemeeterSettings.FromDictionary(settings);
     }
 
-    public override Task OnSettingsChangedAsync(Dictionary<string, object> settings)
+    public override async Task OnSettingsChangedAsync(Dictionary<string, object> settings)
     {
         UpdateSettings(settings);
         Log.Info($"Settings changed context={Context} channelKey={VmSettings.ChannelKey} step={VmSettings.Step} invert={VmSettings.InvertKnob}");
-        return RefreshSharedStateAsync();
+        await UpdateDisplayAsync();
     }
 
     protected override void Dispose(bool disposing)

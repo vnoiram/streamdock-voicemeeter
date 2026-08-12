@@ -24,13 +24,13 @@ public sealed class RotateOutputDeviceHandler(
 
     public override Task OnWillAppearAsync()
     {
-        Log.Info($"RotateOutputDevice willAppear context={Context} channelKey={VmSettings.ChannelKey}");
-        return SetTitleAsync(Label);
+        Log.Info($"RotateOutputDevice willAppear context={Context} busIndex={VmSettings.ChannelIndex}");
+        return SetTitleAsync(DisplayLabel);
     }
 
     public override Task UpdateDisplayAsync()
     {
-        return SetTitleAsync(Label);
+        return SetTitleAsync(DisplayLabel);
     }
 
     public override Task OnKeyDownAsync()
@@ -91,19 +91,21 @@ public sealed class RotateOutputDeviceHandler(
             if (_position < 0) _position += devices.Count;
 
             var device = devices[_position];
-            var result = await Client.SetDeviceAsync(VmSettings.ChannelKind, VmSettings.ChannelIndex, device.DriverParamValue, device.Name, DisposeToken);
+            var result = await Client.SetDeviceAsync("bus", VmSettings.ChannelIndex, device.DriverParamValue, device.Name, DisposeToken);
             if (!result.Success)
             {
                 await ShowErrorAsync(result.ErrorSummary ?? "Voicemeeter output device update failed");
                 return;
             }
 
-            await SetTitleAsync($"{Label}\n{device.Name}");
-            Log.Info($"RotateOutputDevice set context={Context} channelKey={VmSettings.ChannelKey} step={step} device={device.Name}");
+            await SetTitleAsync($"{DisplayLabel}\n{device.Name}");
+            Log.Info($"RotateOutputDevice set context={Context} busIndex={VmSettings.ChannelIndex} step={step} device={device.Name}");
         }
         catch (Exception ex)
         {
             await ShowErrorAsync(ex);
         }
     }
+
+    private string DisplayLabel => VmSettings.TitleLabel ?? VoicemeeterSettings.DisplayNameFor("bus", VmSettings.ChannelIndex);
 }

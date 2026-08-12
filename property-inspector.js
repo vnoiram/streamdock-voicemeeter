@@ -322,9 +322,9 @@
       return;
     }
     settings.edition = normalizeEdition(byId('edition').value);
-    settings.channelKind = normalizeChannelKind(byId('channelKind').value);
+    settings.channelKind = effectiveChannelKind();
     settings.channelIndex = normalizeIndex(byId('channelChannel').value, settings.channelIndex,
-      maxIndexFor(effectiveChannelKind(), settings.edition));
+      maxIndexFor(settings.channelKind, settings.edition));
     settings.step = normalizeStep(byId('step').value, settings.step, 0.1, 24);
     settings.deviceId = byId('deviceId').value.trim();
     settings.macroButtonIndex = Math.max(0, Math.min(79, Math.round(Number(byId('macroButtonIndex').value) || 0)));

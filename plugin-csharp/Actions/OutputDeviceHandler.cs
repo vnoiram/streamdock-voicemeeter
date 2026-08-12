@@ -19,13 +19,13 @@ public sealed class OutputDeviceHandler(
 {
     public override Task OnWillAppearAsync()
     {
-        Log.Info($"OutputDevice willAppear context={Context} channelKey={VmSettings.ChannelKey} deviceId={VmSettings.DeviceId}");
-        return SetTitleAsync(Label);
+        Log.Info($"OutputDevice willAppear context={Context} busIndex={VmSettings.ChannelIndex} deviceId={VmSettings.DeviceId}");
+        return SetTitleAsync(DisplayLabel);
     }
 
     public override Task UpdateDisplayAsync()
     {
-        return SetTitleAsync(Label);
+        return SetTitleAsync(DisplayLabel);
     }
 
     public override async Task OnKeyDownAsync()
@@ -39,7 +39,7 @@ public sealed class OutputDeviceHandler(
 
         try
         {
-            var result = await Client.SetDeviceAsync(VmSettings.ChannelKind, VmSettings.ChannelIndex, parsed.Value.Driver, parsed.Value.Name, DisposeToken);
+            var result = await Client.SetDeviceAsync("bus", VmSettings.ChannelIndex, parsed.Value.Driver, parsed.Value.Name, DisposeToken);
             if (!result.Success)
             {
                 await ShowErrorAsync(result.ErrorSummary ?? "Voicemeeter output device update failed");
@@ -47,14 +47,16 @@ public sealed class OutputDeviceHandler(
             }
 
             await ShowOkAsync();
-            await SetTitleAsync($"{Label}\n{parsed.Value.Name}");
-            Log.Info($"OutputDevice set context={Context} channelKey={VmSettings.ChannelKey} device={parsed.Value.Name}");
+            await SetTitleAsync($"{DisplayLabel}\n{parsed.Value.Name}");
+            Log.Info($"OutputDevice set context={Context} busIndex={VmSettings.ChannelIndex} device={parsed.Value.Name}");
         }
         catch (Exception ex)
         {
             await ShowErrorAsync(ex);
         }
     }
+
+    private string DisplayLabel => VmSettings.TitleLabel ?? VoicemeeterSettings.DisplayNameFor("bus", VmSettings.ChannelIndex);
 
     private static (string Driver, string Name)? ParseDeviceId(string deviceId)
     {
