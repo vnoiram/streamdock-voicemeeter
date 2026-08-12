@@ -344,6 +344,12 @@
     settings.overviewTargets = selectedOverviewTargets();
     render();
     websocket.send(JSON.stringify({ event: 'setSettings', context: actionContext, payload: settings }));
+    websocket.send(JSON.stringify({
+      event: 'sendToPlugin',
+      action: currentAction,
+      context: propertyInspectorContext,
+      payload: { command: 'settingsChanged', settings: settings, replyContext: actionContext }
+    }));
     sendCount += 1;
     setPiStatus('sent #' + sendCount + ' overviewTargets=' + settings.overviewTargets.length + ' at ' + new Date().toLocaleTimeString());
     if (isDeviceSelectAction() || isDeviceInfoAction()) requestDevices();

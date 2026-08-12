@@ -45,7 +45,7 @@ Sonar のローカル HTTPS API と異なり、Voicemeeter にはネットワー
 - デバイス割り当ては Voicemeeter の文字列パラメータ（`Strip[i].device.<driver>` / `Bus[i].device.<driver>`、`<driver>` は `mme`/`wdm`/`ks`/`asio` のいずれか）を使用し、デバイス一覧は `VBVMR_Input_GetDeviceDescA`/`VBVMR_Output_GetDeviceDescA` で列挙する。
 - MacroButtons はキー押下/解放時に `DEFAULT` bitmode で `VBVMR_MacroButton_SetStatus` を呼ぶ（物理ボタンのクリックと同様に press/release 両方が発火する）。表示用の on/off 状態は `STATEONLY` で読み取る。
 
-Property Inspector はライブデータ（デバイス一覧、マクロボタン状態、診断情報）を `sendToPlugin` 経由で要求する。これらのリクエストは Property Inspector 自身の接続コンテキストを使い、保存済み設定はアクションのコンテキストを使う。`streamdock-sonar` と同じ `replyContext` の規約に従っている。
+Property Inspector はライブデータ（デバイス一覧、マクロボタン状態、診断情報）を `sendToPlugin` 経由で要求する。これらのリクエストは Property Inspector 自身の接続コンテキストを使い、保存済み設定はアクションのコンテキストを使う。`streamdock-sonar` と同じ `replyContext` の規約に従っている。設定保存後は稼働中のアクションハンドラにも直接通知するため、`Voicemeeter Mute` などのチャンネル変更は Stream Dock 本体の再起動なしで即時反映される。
 
 ## ログ
 

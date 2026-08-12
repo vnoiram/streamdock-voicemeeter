@@ -45,7 +45,7 @@ Unlike Sonar's local HTTPS API, Voicemeeter has no network server. The plugin lo
 - Device assignment uses Voicemeeter's string parameters (`Strip[i].device.<driver>` / `Bus[i].device.<driver>`) where `<driver>` is one of `mme`, `wdm`, `ks`, `asio`; device lists are enumerated via `VBVMR_Input_GetDeviceDescA`/`VBVMR_Output_GetDeviceDescA`.
 - MacroButtons use `VBVMR_MacroButton_SetStatus` with the `DEFAULT` bitmode on key-down/key-up (so both press and release fire, matching a physical button click) and `STATEONLY` reads for the displayed on/off icon state.
 
-The Property Inspector requests live data (device lists, macro button status, diagnostics) over `sendToPlugin`; those requests use the Property Inspector connection context while saved settings use the action context, following the same `replyContext` convention as `streamdock-sonar`.
+The Property Inspector requests live data (device lists, macro button status, diagnostics) over `sendToPlugin`; those requests use the Property Inspector connection context while saved settings use the action context, following the same `replyContext` convention as `streamdock-sonar`. After saving settings, the Property Inspector also notifies the running action handler directly so channel changes such as `Voicemeeter Mute` take effect immediately without restarting the Stream Dock host.
 
 ## Logs
 

@@ -79,6 +79,9 @@ public sealed class VoicemeeterPlugin : StreamDockPlugin
         {
             switch (command)
             {
+                case "settingsChanged":
+                    await ApplySettingsChangedAsync(e.Payload, replyContext);
+                    break;
                 case "devices":
                     await SendDevicesAsync(e, replyContext);
                     break;
@@ -94,6 +97,26 @@ public sealed class VoicemeeterPlugin : StreamDockPlugin
         {
             Log.Warn($"Fallback sendToPlugin failed command={command}: {ex.Message}");
         }
+    }
+
+    private async Task ApplySettingsChangedAsync(JsonElement payload, string replyContext)
+    {
+        var settings = ReadSettings(payload);
+        if (settings == null)
+        {
+            Log.Warn($"Fallback settingsChanged missing settings replyContext={replyContext}");
+            return;
+        }
+
+        var handler = HandlerManager.GetHandler(replyContext);
+        if (handler == null)
+        {
+            Log.Warn($"Fallback settingsChanged no handler replyContext={replyContext}");
+            return;
+        }
+
+        Log.Info($"Fallback settingsChanged apply replyContext={replyContext}");
+        await handler.OnSettingsChangedAsync(settings);
     }
 
     private async Task SendDevicesAsync(SendToPluginEventArgs e, string replyContext)
@@ -186,5 +209,15 @@ public sealed class VoicemeeterPlugin : StreamDockPlugin
         if (value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var number)) return number;
         if (value.ValueKind == JsonValueKind.String && int.TryParse(value.GetString(), out var parsed)) return parsed;
         return null;
+    }
+
+    private static Dictionary<string, object>? ReadSettings(JsonElement payload)
+    {
+        if (payload.ValueKind != JsonValueKind.Object ||
+            !payload.TryGetProperty("settings", out var settingsElement) ||
+            settingsElement.ValueKind != JsonValueKind.Object)
+            return null;
+
+        return JsonSerializer.Deserialize<Dictionary<string, object>>(settingsElement.GetRawText());
     }
 }
