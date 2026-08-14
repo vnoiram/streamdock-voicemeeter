@@ -37,7 +37,8 @@ VB-Audio Voicemeeter (Standard/Banana/Potato) の strip / bus を直接操作す
 Sonar のローカル HTTPS API と異なり、Voicemeeter にはネットワークサーバーが存在しない。プラグインは `VoicemeeterRemote64.dll` を P/Invoke でロードし、ログインセッション（`VBVMR_Login`/`VBVMR_Logout`）を管理する。
 
 - DLL探索はまずレジストリ（`HKEY_LOCAL_MACHINE\SOFTWARE\VB:Audio\Voicemeeter`、WOW6432Node および `Voicemeter`/`Voicemeeter` の表記ゆれもフォールバック）からインストールディレクトリを取得し、取得できない場合は既定パス `C:\Program Files (x86)\VB\Voicemeeter\VoicemeeterRemote64.dll` / `C:\Program Files\VB\Voicemeeter\VoicemeeterRemote64.dll` にフォールバックする。
-- Voicemeeter がインストール済みだが起動していない場合、どのエディションを自動起動すべきか推測せず、明確な「未起動」エラーを表示する。プロセス起動中に一度エディションを検出できていれば、以後の切断時にはそのエディションで `VBVMR_RunVoicemeeter` を試みてからログインを再試行する。
+- Voicemeeter がインストール済みだが起動していない場合、どのエディションを自動起動すべきか推測せず、明確な「未起動」エラーを表示する。プロセス起動中に一度エディションを検出できていれば、以後の切断時にはそのエディションで `VBVMR_RunVoicemeeter` を試み、既存の Remote API セッションを継続する。
+- PC のスリープ/再起動や Voicemeeter の再起動後に Remote API 呼び出しが `-2` を返した場合、古いセッションを `VBVMR_Logout()` してから再ログインし、同じ呼び出しを一度だけ再試行してからエラー表示する。
 - 状態（全 `Strip[0..7]`/`Bus[0..7]` の gain/mute）は `VBVMR_IsParametersDirty()` を約1秒間隔でポーリングして更新し、同じチャンネルを表示する全ボタンが一斉に更新される（Sonar の共有ステートキャッシュと同じパターン）。
 - plugin process の起動時、新しいインスタンスは既に動作中の Voicemeeter plugin instance に終了を要求し、その後も同じ実行ファイルパスのプロセスが残っていれば終了させてから接続する。協調的に終了できる旧プロセスには先に `VBVMR_Logout()` を呼ばせつつ、終了要求を受け取れない古いビルドも掃除する。
 - Stream Dock 本体がプラグイン WebSocket を閉じた場合は、共有ステートポーリングを停止し、以後の `VBVMR_Login()` を抑止してから、Stream Dock WebSocket の後始末待ちより先に専用 Voicemeeter API スレッド上で `VBVMR_Logout()` を呼び、plugin process を終了して Voicemeeter 側に古い Remote API セッションを残さない。

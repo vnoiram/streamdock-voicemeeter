@@ -12,6 +12,7 @@ public static class VoicemeeterRuntime
     public static void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        Client.SuppressReconnect();
         State.Dispose();
         Client.Dispose();
     }

@@ -4,7 +4,7 @@ public sealed class SingleInstanceGuard : IDisposable
 {
     private const string MutexName = @"Local\StreamDockVoicemeeterPlugin.Instance";
     private const string ShutdownEventName = @"Local\StreamDockVoicemeeterPlugin.Shutdown";
-    private static readonly TimeSpan GracefulExitTimeout = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan GracefulExitTimeout = TimeSpan.FromSeconds(6);
     private static readonly TimeSpan ForcedExitTimeout = TimeSpan.FromSeconds(5);
 
     private readonly CancellationTokenSource _disposeCancellation = new();

@@ -16,7 +16,8 @@ public sealed class VoicemeeterClient : IDisposable
     private readonly BlockingCollection<NativeCall> _nativeCalls = new();
     private readonly Thread _nativeThread;
     private int _disposed;
-    private bool _loginAttempted;
+    private int _reconnectSuppressed;
+    private bool _loginSucceeded;
     private bool _loggedIn;
     private VoicemeeterEdition _lastEdition = VoicemeeterEdition.Unknown;
 
@@ -41,20 +42,13 @@ public sealed class VoicemeeterClient : IDisposable
 
         try
         {
-            if (_loginAttempted)
+            if (_loginSucceeded)
             {
-                try
+                RunDuringDispose(() =>
                 {
-                    var code = RunDuringDispose(() => NativeMethods.VBVMR_Logout());
-                    Log.Info($"Voicemeeter logout code={code}");
-                }
-                catch (Exception ex)
-                {
-                    Log.Warn($"Voicemeeter logout failed: {ex.Message}");
-                }
-
-                _loggedIn = false;
-                _loginAttempted = false;
+                    LogoutSessionSync("dispose");
+                    return true;
+                });
             }
         }
         finally
@@ -68,42 +62,12 @@ public sealed class VoicemeeterClient : IDisposable
 
     public Task<VoicemeeterOperationResult> EnsureConnectedAsync(CancellationToken cancellationToken = default)
     {
-        return RunAsync(() =>
-        {
-            if (_loggedIn) return VoicemeeterOperationResult.Ok();
+        return RunAsync(EnsureConnectedSync, cancellationToken);
+    }
 
-            var code = NativeMethods.VBVMR_Login();
-            _loginAttempted = true;
-            Log.Info($"Voicemeeter login code={code} dll={DllPath ?? "(not resolved)"}");
-            if (code == 0)
-            {
-                _loggedIn = true;
-                return VoicemeeterOperationResult.Ok();
-            }
-
-            if (code == 1)
-            {
-                if (_lastEdition != VoicemeeterEdition.Unknown)
-                {
-                    var runType = _lastEdition == VoicemeeterEdition.PotatoX64 ? 3 : (int)_lastEdition;
-                    var runCode = NativeMethods.VBVMR_RunVoicemeeter(runType);
-                    Log.Info($"Voicemeeter RunVoicemeeter type={runType} code={runCode}");
-                    Thread.Sleep(1500);
-                    var retryCode = NativeMethods.VBVMR_Login();
-                    _loginAttempted = true;
-                    if (retryCode == 0)
-                    {
-                        _loggedIn = true;
-                        return VoicemeeterOperationResult.Ok();
-                    }
-                }
-
-                return VoicemeeterOperationResult.Fail(code, null,
-                    "Voicemeeter is installed but not currently running. Launch Voicemeeter and try again.");
-            }
-
-            return VoicemeeterOperationResult.Fail(code, null, VoicemeeterOperationResult.DescribeStatusCode(code));
-        }, cancellationToken);
+    public void SuppressReconnect()
+    {
+        Interlocked.Exchange(ref _reconnectSuppressed, 1);
     }
 
     public async Task<VoicemeeterEdition> GetEditionAsync(CancellationToken cancellationToken = default)
@@ -114,6 +78,8 @@ public sealed class VoicemeeterClient : IDisposable
         return await RunAsync(() =>
         {
             var code = NativeMethods.VBVMR_GetVoicemeeterType(out var type);
+            if (TryReconnectAfterDisconnected(code, "GetVoicemeeterType"))
+                code = NativeMethods.VBVMR_GetVoicemeeterType(out type);
             ObserveStatusCode(code);
             if (code != 0) return VoicemeeterEdition.Unknown;
             var edition = type switch
@@ -137,6 +103,8 @@ public sealed class VoicemeeterClient : IDisposable
         return await RunAsync(() =>
         {
             var code = NativeMethods.VBVMR_GetVoicemeeterVersion(out var packed);
+            if (TryReconnectAfterDisconnected(code, "GetVoicemeeterVersion"))
+                code = NativeMethods.VBVMR_GetVoicemeeterVersion(out packed);
             ObserveStatusCode(code);
             if (code != 0) return null;
             var v1 = (packed >> 24) & 0xFF;
@@ -258,6 +226,8 @@ public sealed class VoicemeeterClient : IDisposable
         return await RunAsync(() =>
         {
             var code = NativeMethods.VBVMR_MacroButton_SetStatus(index, pressed ? 1f : 0f, MacroModeDefault);
+            if (TryReconnectAfterDisconnected(code, $"MacroButton_SetStatus[{index}]"))
+                code = NativeMethods.VBVMR_MacroButton_SetStatus(index, pressed ? 1f : 0f, MacroModeDefault);
             ObserveStatusCode(code);
             var result = code == 0
                 ? VoicemeeterOperationResult.Ok($"MacroButton[{index}]")
@@ -275,6 +245,8 @@ public sealed class VoicemeeterClient : IDisposable
         return await RunAsync(() =>
         {
             var code = NativeMethods.VBVMR_MacroButton_GetStatus(index, out var value, MacroModeStateOnly);
+            if (TryReconnectAfterDisconnected(code, $"MacroButton_GetStatus[{index}]"))
+                code = NativeMethods.VBVMR_MacroButton_GetStatus(index, out value, MacroModeStateOnly);
             ObserveStatusCode(code);
             return code == 0 && value >= 0.5f;
         }, cancellationToken);
@@ -288,6 +260,8 @@ public sealed class VoicemeeterClient : IDisposable
         return await RunAsync(() =>
         {
             var code = NativeMethods.VBVMR_IsParametersDirty();
+            if (TryReconnectAfterDisconnected(code, "IsParametersDirty"))
+                code = NativeMethods.VBVMR_IsParametersDirty();
             ObserveStatusCode(code);
             return code == 1;
         }, cancellationToken);
@@ -301,6 +275,8 @@ public sealed class VoicemeeterClient : IDisposable
         return await RunAsync(() =>
         {
             var code = NativeMethods.VBVMR_MacroButton_IsDirty();
+            if (TryReconnectAfterDisconnected(code, "MacroButton_IsDirty"))
+                code = NativeMethods.VBVMR_MacroButton_IsDirty();
             ObserveStatusCode(code);
             return code == 1;
         }, cancellationToken);
@@ -379,6 +355,8 @@ public sealed class VoicemeeterClient : IDisposable
     private float? ReadFloatParamSync(string name)
     {
         var code = NativeMethods.VBVMR_GetParameterFloat(name, out var value);
+        if (TryReconnectAfterDisconnected(code, $"GetParameterFloat {name}"))
+            code = NativeMethods.VBVMR_GetParameterFloat(name, out value);
         ObserveStatusCode(code);
         if (code != 0)
         {
@@ -392,6 +370,8 @@ public sealed class VoicemeeterClient : IDisposable
     private VoicemeeterOperationResult WriteFloatParamSync(string name, float value)
     {
         var code = NativeMethods.VBVMR_SetParameterFloat(name, value);
+        if (TryReconnectAfterDisconnected(code, $"SetParameterFloat {name}"))
+            code = NativeMethods.VBVMR_SetParameterFloat(name, value);
         ObserveStatusCode(code);
         var result = code == 0
             ? VoicemeeterOperationResult.Ok(name)
@@ -405,6 +385,8 @@ public sealed class VoicemeeterClient : IDisposable
     {
         var buffer = new StringBuilder(512);
         var code = NativeMethods.VBVMR_GetParameterStringA(name, buffer);
+        if (TryReconnectAfterDisconnected(code, $"GetParameterStringA {name}"))
+            code = NativeMethods.VBVMR_GetParameterStringA(name, buffer);
         ObserveStatusCode(code);
         if (code != 0)
         {
@@ -418,6 +400,8 @@ public sealed class VoicemeeterClient : IDisposable
     private VoicemeeterOperationResult WriteStringParamSync(string name, string value)
     {
         var code = NativeMethods.VBVMR_SetParameterStringA(name, value);
+        if (TryReconnectAfterDisconnected(code, $"SetParameterStringA {name}"))
+            code = NativeMethods.VBVMR_SetParameterStringA(name, value);
         ObserveStatusCode(code);
         var result = code == 0
             ? VoicemeeterOperationResult.Ok(name)
@@ -460,6 +444,85 @@ public sealed class VoicemeeterClient : IDisposable
     private static string ParamPrefix(string channelKind, int index)
     {
         return string.Equals(channelKind, "bus", StringComparison.OrdinalIgnoreCase) ? $"Bus[{index}]" : $"Strip[{index}]";
+    }
+
+    private VoicemeeterOperationResult EnsureConnectedSync()
+    {
+        if (_loggedIn) return VoicemeeterOperationResult.Ok();
+        if (Volatile.Read(ref _reconnectSuppressed) != 0)
+            return VoicemeeterOperationResult.Fail(-2, null, "Voicemeeter reconnect is suppressed while the plugin is shutting down.");
+
+        var code = NativeMethods.VBVMR_Login();
+        Log.Info($"Voicemeeter login code={code} dll={DllPath ?? "(not resolved)"}");
+        if (code == 0)
+        {
+            _loggedIn = true;
+            _loginSucceeded = true;
+            return VoicemeeterOperationResult.Ok();
+        }
+
+        if (code == 1)
+        {
+            _loginSucceeded = true;
+            if (_lastEdition != VoicemeeterEdition.Unknown)
+            {
+                var runType = _lastEdition == VoicemeeterEdition.PotatoX64 ? 3 : (int)_lastEdition;
+                var runCode = NativeMethods.VBVMR_RunVoicemeeter(runType);
+                Log.Info($"Voicemeeter RunVoicemeeter type={runType} code={runCode}");
+                Thread.Sleep(1500);
+                if (runCode == 0)
+                {
+                    _loggedIn = true;
+                    _loginSucceeded = true;
+                    return VoicemeeterOperationResult.Ok();
+                }
+
+                LogoutSessionSync("run-voicemeeter-failed");
+                return VoicemeeterOperationResult.Fail(runCode, null, VoicemeeterOperationResult.DescribeStatusCode(runCode));
+            }
+
+            LogoutSessionSync("voicemeeter-not-running");
+            return VoicemeeterOperationResult.Fail(code, null,
+                "Voicemeeter is installed but not currently running. Launch Voicemeeter and try again.");
+        }
+
+        return VoicemeeterOperationResult.Fail(code, null, VoicemeeterOperationResult.DescribeStatusCode(code));
+    }
+
+    private bool TryReconnectAfterDisconnected(int code, string operation)
+    {
+        if (!VoicemeeterOperationResult.IndicatesDisconnected(code)) return false;
+
+        _loggedIn = false;
+        if (Volatile.Read(ref _reconnectSuppressed) != 0) return false;
+
+        Log.Warn($"Voicemeeter remote session disconnected during {operation}; reconnecting");
+        if (_loginSucceeded) LogoutSessionSync("reconnect");
+
+        var reconnect = EnsureConnectedSync();
+        if (reconnect.Success) return true;
+
+        LastResult = reconnect;
+        Log.Warn($"Voicemeeter reconnect failed during {operation}: {reconnect.ErrorSummary}");
+        return false;
+    }
+
+    private void LogoutSessionSync(string reason)
+    {
+        try
+        {
+            var code = NativeMethods.VBVMR_Logout();
+            Log.Info($"Voicemeeter logout reason={reason} code={code}");
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"Voicemeeter logout failed reason={reason}: {ex.Message}");
+        }
+        finally
+        {
+            _loggedIn = false;
+            _loginSucceeded = false;
+        }
     }
 
     private async Task<T> RunAsync<T>(Func<T> action, CancellationToken cancellationToken)
