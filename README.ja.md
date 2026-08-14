@@ -6,7 +6,7 @@ VB-Audio Voicemeeter (Standard/Banana/Potato) の strip / bus を直接操作す
 
 ## バージョン
 
-現行バージョン: `0.1.19`。
+現行バージョン: `0.1.20`。
 
 ## サポート範囲
 
@@ -94,7 +94,7 @@ npm run check
 リリース出力は以下に書き出される:
 
 ```text
-dist/release/streamdock-voicemeeter-0.1.19.zip
+dist/release/streamdock-voicemeeter-0.1.20.zip
 ```
 
 パッケージ済みプラグインディレクトリ:
