@@ -9,7 +9,7 @@ namespace StreamDockVoicemeeter.Actions;
 public abstract class VoicemeeterActionHandler : ActionHandler
 {
     protected readonly ILog Log = LogManager.GetLogger(typeof(VoicemeeterActionHandler));
-    protected readonly VoicemeeterClient Client = VoicemeeterRuntime.Client;
+    protected readonly IVoicemeeterClient Client = VoicemeeterRuntime.Client;
     protected VoicemeeterSettings VmSettings { get; private set; }
 
     protected VoicemeeterActionHandler(StreamDockConnection connection, string context, Dictionary<string, object>? settings)

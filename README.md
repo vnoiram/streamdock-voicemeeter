@@ -34,14 +34,17 @@ Edition-agnostic by design: strip/bus index and kind (`strip`/`bus`) are freely 
 
 ## Runtime Behavior
 
-Unlike Sonar's local HTTPS API, Voicemeeter has no network server. The plugin loads `VoicemeeterRemote64.dll` via P/Invoke and manages a login session (`VBVMR_Login`/`VBVMR_Logout`):
+Unlike Sonar's local HTTPS API, Voicemeeter has no network server. The plugin starts the bundled executable with `--voicemeeter-proxy` as a broker and sends requests over the `StreamDockVoicemeeter.Proxy.v1` named pipe. Only the broker loads `VoicemeeterRemote64.dll` via P/Invoke and manages the login session (`VBVMR_Login`/`VBVMR_Logout`):
 
+- Remote API access mode is selected with `STREAMDOCK_VOICEMEETER_REMOTE_MODE`. The default is `proxy`. Set it to `direct` to make the plugin process load `VoicemeeterRemote64.dll` directly, matching the previous behavior.
 - DLL discovery checks the registry (`HKEY_LOCAL_MACHINE\SOFTWARE\VB:Audio\Voicemeeter`, with WOW6432Node and `Voicemeter`/`Voicemeeter` spelling fallbacks) for the install directory, then falls back to the default `C:\Program Files (x86)\VB\Voicemeeter\VoicemeeterRemote64.dll` / `C:\Program Files\VB\Voicemeeter\VoicemeeterRemote64.dll` paths.
 - If Voicemeeter is installed but not running, the plugin shows a clear "not running" error rather than guessing which edition to auto-launch. Once an edition has been detected in the current process lifetime, a later disconnect will attempt `VBVMR_RunVoicemeeter` with that same edition and continue the existing Remote API session.
-- If a Remote API call reports `-2` after a PC sleep, reboot, or Voicemeeter restart, the plugin logs out the stale session, logs in again, and retries that same call once before surfacing an error.
+- The broker is limited to one process with the `Local\StreamDockVoicemeeter.Proxy.v1` mutex. If another application uses the same pipe protocol, Voicemeeter access still goes through the broker's single shared session.
+- The shared pipe protocol is documented in [`docs/voicemeeter-proxy-protocol.md`](docs/voicemeeter-proxy-protocol.md).
+- If a Remote API call reports `-2` after a PC sleep, reboot, or Voicemeeter restart, the broker logs out the stale session, logs in again, and retries that same call once before surfacing an error.
 - State (gain/mute for all `Strip[0..7]`/`Bus[0..7]`) is refreshed via `VBVMR_IsParametersDirty()` polling roughly once per second; all buttons sharing the same channel update together, mirroring Sonar's shared-state-cache pattern.
 - On plugin process startup, a new instance asks any already-running Voicemeeter plugin instance to shut down, then terminates any remaining process with the same executable path before connecting. This lets a cooperative old process call `VBVMR_Logout()` first, and still cleans up stale older builds that cannot receive the shutdown request.
-- When the Stream Dock host closes the plugin WebSocket, the plugin stops shared-state polling, prevents any further `VBVMR_Login()` calls, calls `VBVMR_Logout()` on its dedicated Voicemeeter API thread before waiting on the Stream Dock WebSocket cleanup, and exits the plugin process so Voicemeeter does not retain stale Remote API sessions.
+- When the Stream Dock host closes the plugin WebSocket, the plugin stops reconnecting to the broker and exits. If no request arrives for roughly 30 seconds after the last access, the broker calls `VBVMR_Logout()` and exits, reducing stale Remote API sessions even when the Stream Dock host does not provide a reliable shutdown hook.
 - Gain is a `float` in dB, clamped to `-60.0`..`+12.0`.
 - Device assignment uses Voicemeeter's string parameters (`Strip[i].device.<driver>` / `Bus[i].device.<driver>`) where `<driver>` is one of `mme`, `wdm`, `ks`, `asio`; device lists are enumerated via `VBVMR_Input_GetDeviceDescA`/`VBVMR_Output_GetDeviceDescA`.
 - MacroButtons use `VBVMR_MacroButton_SetStatus` with the `DEFAULT` bitmode on key-down/key-up (so both press and release fire, matching a physical button click) and `STATEONLY` reads for the displayed on/off icon state.
@@ -87,6 +90,12 @@ JavaScript and manifest checks (safe to run on the host):
 
 ```bash
 npm run check
+```
+
+To test direct mode:
+
+```powershell
+$env:STREAMDOCK_VOICEMEETER_REMOTE_MODE = "direct"
 ```
 
 ## Output

@@ -7,7 +7,7 @@ using Microsoft.Win32;
 
 namespace StreamDockVoicemeeter;
 
-public sealed class VoicemeeterClient : IDisposable
+public sealed class VoicemeeterClient : IVoicemeeterClient
 {
     private static readonly ILog Log = LogManager.GetLogger(typeof(VoicemeeterClient));
     private const int MacroModeDefault = 0x00000000;
@@ -322,6 +322,7 @@ public sealed class VoicemeeterClient : IDisposable
         {
             dllPath = DllPath,
             discoveryError = DiscoveryError,
+            remoteMode = "direct",
             loggedIn = connect.Success,
             connectError = connect.Success ? null : connect.ErrorSummary,
             edition = edition.ToString(),
