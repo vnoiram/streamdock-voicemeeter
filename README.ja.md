@@ -6,7 +6,7 @@ VB-Audio Voicemeeter (Standard/Banana/Potato) の strip / bus を直接操作す
 
 ## バージョン
 
-現行バージョン: `0.1.20`。
+現行バージョン: `0.1.21`。
 
 ## サポート範囲
 
@@ -103,7 +103,7 @@ $env:STREAMDOCK_VOICEMEETER_REMOTE_MODE = "direct"
 リリース出力は以下に書き出される:
 
 ```text
-dist/release/streamdock-voicemeeter-0.1.20.zip
+dist/release/streamdock-voicemeeter-0.1.21.zip
 ```
 
 パッケージ済みプラグインディレクトリ:

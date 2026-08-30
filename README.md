@@ -6,7 +6,7 @@ Mirabox Stream Dock plugin for controlling VB-Audio Voicemeeter (Standard/Banana
 
 ## Version
 
-Current version: `0.1.20`.
+Current version: `0.1.21`.
 
 ## Support Scope
 
@@ -103,7 +103,7 @@ $env:STREAMDOCK_VOICEMEETER_REMOTE_MODE = "direct"
 Release output is written to:
 
 ```text
-dist/release/streamdock-voicemeeter-0.1.20.zip
+dist/release/streamdock-voicemeeter-0.1.21.zip
 ```
 
 The packaged plugin directory is:
