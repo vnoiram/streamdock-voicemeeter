@@ -2,12 +2,6 @@ using StreamDockVoicemeeter;
 
 Directory.SetCurrentDirectory(AppContext.BaseDirectory);
 
-if (args.Any(arg => string.Equals(arg, VoicemeeterProxyProtocol.BrokerArgument, StringComparison.OrdinalIgnoreCase)))
-{
-    Environment.ExitCode = await VoicemeeterProxyBroker.RunAsync();
-    return;
-}
-
 AppDomain.CurrentDomain.ProcessExit += (_, _) => VoicemeeterRuntime.Dispose();
 Console.CancelKeyPress += (_, _) => VoicemeeterRuntime.Dispose();
 

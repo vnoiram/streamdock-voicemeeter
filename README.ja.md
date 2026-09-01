@@ -6,7 +6,7 @@ VB-Audio Voicemeeter (Standard/Banana/Potato) の strip / bus を直接操作す
 
 ## バージョン
 
-現行バージョン: `0.1.21`。
+現行バージョン: `0.2.0`。
 
 ## サポート範囲
 
@@ -34,17 +34,15 @@ VB-Audio Voicemeeter (Standard/Banana/Potato) の strip / bus を直接操作す
 
 ## ランタイム動作
 
-Sonar のローカル HTTPS API と異なり、Voicemeeter にはネットワークサーバーが存在しない。プラグイン本体は同梱 exe を `--voicemeeter-proxy` で broker として起動し、named pipe `StreamDockVoicemeeter.Proxy.v1` 経由で操作を依頼する。broker だけが `VoicemeeterRemote64.dll` を P/Invoke でロードし、ログインセッション（`VBVMR_Login`/`VBVMR_Logout`）を管理する。
+Sonar のローカル HTTPS API と異なり、Voicemeeter にはネットワークサーバーが存在せず、Remote API は実質「1マシンにログインセッション1つ」の共有リソースである。そこで本プラグインは外部サービス [`voicemeeter-hub`](../../voicemeeter-hub)（単独の WebSocket サーバ）に接続する。hub がマシン全体で唯一の `VoicemeeterRemote64.dll` ログインセッション（`VBVMR_Login`/`VBVMR_Logout`）と唯一の状態ポーラーを所有するため、複数アプリが DLL を奪い合わずに Voicemeeter を操作できる。
 
-- Remote API 接続方式は `STREAMDOCK_VOICEMEETER_REMOTE_MODE` で選択できる。既定値は `proxy`。`direct` を指定すると従来どおりプラグインプロセスが直接 `VoicemeeterRemote64.dll` をロードする。
-- DLL探索はまずレジストリ（`HKEY_LOCAL_MACHINE\SOFTWARE\VB:Audio\Voicemeeter`、WOW6432Node および `Voicemeter`/`Voicemeeter` の表記ゆれもフォールバック）からインストールディレクトリを取得し、取得できない場合は既定パス `C:\Program Files (x86)\VB\Voicemeeter\VoicemeeterRemote64.dll` / `C:\Program Files\VB\Voicemeeter\VoicemeeterRemote64.dll` にフォールバックする。
-- Voicemeeter がインストール済みだが起動していない場合、どのエディションを自動起動すべきか推測せず、明確な「未起動」エラーを表示する。プロセス起動中に一度エディションを検出できていれば、以後の切断時にはそのエディションで `VBVMR_RunVoicemeeter` を試み、既存の Remote API セッションを継続する。
-- broker は `Local\StreamDockVoicemeeter.Proxy.v1` mutex で 1 プロセスに集約される。他アプリが同じ pipe プロトコルを使う場合も、Voicemeeter へのログイン主体は共有 broker の 1 セッションになる。
-- 共有 pipe プロトコルは [`docs/voicemeeter-proxy-protocol.md`](docs/voicemeeter-proxy-protocol.md) に記載している。
-- PC のスリープ/再起動や Voicemeeter の再起動後に Remote API 呼び出しが `-2` を返した場合、broker が古いセッションを `VBVMR_Logout()` してから再ログインし、同じ呼び出しを一度だけ再試行してからエラー表示する。
-- 状態（全 `Strip[0..7]`/`Bus[0..7]` の gain/mute）は `VBVMR_IsParametersDirty()` を約1秒間隔でポーリングして更新し、同じチャンネルを表示する全ボタンが一斉に更新される（Sonar の共有ステートキャッシュと同じパターン）。
-- plugin process の起動時、新しいインスタンスは既に動作中の Voicemeeter plugin instance に終了を要求し、その後も同じ実行ファイルパスのプロセスが残っていれば終了させてから接続する。協調的に終了できる旧プロセスには先に `VBVMR_Logout()` を呼ばせつつ、終了要求を受け取れない古いビルドも掃除する。
-- Stream Dock 本体がプラグイン WebSocket を閉じた場合、プラグイン本体は broker への再接続を止めて終了する。broker は最終アクセスから約30秒間リクエストがなければ `VBVMR_Logout()` して終了するため、Stream Dock 側に終了 hook がない場合でも Voicemeeter 側に古い Remote API セッションを残しにくい。
+- Remote API 接続方式は `STREAMDOCK_VOICEMEETER_REMOTE_MODE` で選択できる。既定値は `hub`（共有 voicemeeter-hub に `ws://127.0.0.1:50505/` で接続）。`direct` を指定すると従来どおりプラグインプロセスが直接 `VoicemeeterRemote64.dll` をロードする。
+- プラグインは hub を `%LOCALAPPDATA%\voicemeeter-hub\endpoint.json`（無ければ既定ポート）で発見する。hub に接続できない場合は `VOICEMEETER_HUB_EXE`、同梱の `voicemeeter-hub\VoicemeeterHub.exe`、ユーザーインストールパスのいずれかから起動を試み、再接続する。
+- DLL 探索、エディション/バージョン検出、切断時の `VBVMR_RunVoicemeeter` 再起動ロジックはすべて hub 側に移動した。Voicemeeter がインストール済みだが起動していない場合、hub はエディションを推測せず明確な「未起動」エラーを表示する。
+- hub はグローバル mutex で 1 プロセスに集約され、全クライアントがその単一 Remote API セッションを共有する。WebSocket プロトコルは voicemeeter-hub リポジトリの `docs/protocol.md` に記載している。
+- PC のスリープ/再起動や Voicemeeter の再起動後に Remote API 呼び出しが `-2` を返した場合、hub が古いセッションを `VBVMR_Logout()` してから再ログインし、同じ呼び出しを一度だけ再試行してからエラー表示する。
+- 状態（全 `Strip[0..7]`/`Bus[0..7]` の gain/mute）は `VBVMR_IsParametersDirty()` を約1秒間隔でポーリングして更新し、同じチャンネルを表示する全ボタンが一斉に更新される（Sonar の共有ステートキャッシュと同じパターン）。hub は購読したクライアントへ状態を push することもできるが、本プラグインは現状 hub 接続越しにポーリングする。
+- Stream Dock 本体がプラグイン WebSocket を閉じた場合、プラグイン本体は再接続を止めて終了する。hub は接続クライアントが 0 の状態が約60秒続くと自ら終了し Remote API セッションを解放するため、Stream Dock 側に終了 hook がない場合でも古いセッションを残しにくい。
 - Gain は dB 単位の `float` で `-60.0`〜`+12.0` にクランプされる。
 - デバイス割り当ては Voicemeeter の文字列パラメータ（`Strip[i].device.<driver>` / `Bus[i].device.<driver>`、`<driver>` は `mme`/`wdm`/`ks`/`asio` のいずれか）を使用し、デバイス一覧は `VBVMR_Input_GetDeviceDescA`/`VBVMR_Output_GetDeviceDescA` で列挙する。
 - MacroButtons はキー押下/解放時に `DEFAULT` bitmode で `VBVMR_MacroButton_SetStatus` を呼ぶ（物理ボタンのクリックと同様に press/release 両方が発火する）。表示用の on/off 状態は `STATEONLY` で読み取る。
@@ -103,7 +101,7 @@ $env:STREAMDOCK_VOICEMEETER_REMOTE_MODE = "direct"
 リリース出力は以下に書き出される:
 
 ```text
-dist/release/streamdock-voicemeeter-0.1.21.zip
+dist/release/streamdock-voicemeeter-0.2.0.zip
 ```
 
 パッケージ済みプラグインディレクトリ:

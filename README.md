@@ -6,7 +6,7 @@ Mirabox Stream Dock plugin for controlling VB-Audio Voicemeeter (Standard/Banana
 
 ## Version
 
-Current version: `0.1.21`.
+Current version: `0.2.0`.
 
 ## Support Scope
 
@@ -34,17 +34,19 @@ Edition-agnostic by design: strip/bus index and kind (`strip`/`bus`) are freely 
 
 ## Runtime Behavior
 
-Unlike Sonar's local HTTPS API, Voicemeeter has no network server. The plugin starts the bundled executable with `--voicemeeter-proxy` as a broker and sends requests over the `StreamDockVoicemeeter.Proxy.v1` named pipe. Only the broker loads `VoicemeeterRemote64.dll` via P/Invoke and manages the login session (`VBVMR_Login`/`VBVMR_Logout`):
+Unlike Sonar's local HTTPS API, Voicemeeter has no network server, and the Remote API is
+effectively a single-login-session resource. This plugin therefore talks to the external
+[`voicemeeter-hub`](../../voicemeeter-hub) service — a standalone WebSocket server that owns the one
+`VoicemeeterRemote64.dll` login session (`VBVMR_Login`/`VBVMR_Logout`) and the one state poller for
+the whole machine, so several applications can control Voicemeeter without contending for the DLL.
 
-- Remote API access mode is selected with `STREAMDOCK_VOICEMEETER_REMOTE_MODE`. The default is `proxy`. Set it to `direct` to make the plugin process load `VoicemeeterRemote64.dll` directly, matching the previous behavior.
-- DLL discovery checks the registry (`HKEY_LOCAL_MACHINE\SOFTWARE\VB:Audio\Voicemeeter`, with WOW6432Node and `Voicemeter`/`Voicemeeter` spelling fallbacks) for the install directory, then falls back to the default `C:\Program Files (x86)\VB\Voicemeeter\VoicemeeterRemote64.dll` / `C:\Program Files\VB\Voicemeeter\VoicemeeterRemote64.dll` paths.
-- If Voicemeeter is installed but not running, the plugin shows a clear "not running" error rather than guessing which edition to auto-launch. Once an edition has been detected in the current process lifetime, a later disconnect will attempt `VBVMR_RunVoicemeeter` with that same edition and continue the existing Remote API session.
-- The broker is limited to one process with the `Local\StreamDockVoicemeeter.Proxy.v1` mutex. If another application uses the same pipe protocol, Voicemeeter access still goes through the broker's single shared session.
-- The shared pipe protocol is documented in [`docs/voicemeeter-proxy-protocol.md`](docs/voicemeeter-proxy-protocol.md).
-- If a Remote API call reports `-2` after a PC sleep, reboot, or Voicemeeter restart, the broker logs out the stale session, logs in again, and retries that same call once before surfacing an error.
-- State (gain/mute for all `Strip[0..7]`/`Bus[0..7]`) is refreshed via `VBVMR_IsParametersDirty()` polling roughly once per second; all buttons sharing the same channel update together, mirroring Sonar's shared-state-cache pattern.
-- On plugin process startup, a new instance asks any already-running Voicemeeter plugin instance to shut down, then terminates any remaining process with the same executable path before connecting. This lets a cooperative old process call `VBVMR_Logout()` first, and still cleans up stale older builds that cannot receive the shutdown request.
-- When the Stream Dock host closes the plugin WebSocket, the plugin stops reconnecting to the broker and exits. If no request arrives for roughly 30 seconds after the last access, the broker calls `VBVMR_Logout()` and exits, reducing stale Remote API sessions even when the Stream Dock host does not provide a reliable shutdown hook.
+- Remote API access mode is selected with `STREAMDOCK_VOICEMEETER_REMOTE_MODE`. The default is `hub` (connect to the shared voicemeeter-hub service over `ws://127.0.0.1:50505/`). Set it to `direct` to make the plugin process load `VoicemeeterRemote64.dll` itself, matching the previous single-app behavior.
+- The plugin discovers the hub via `%LOCALAPPDATA%\voicemeeter-hub\endpoint.json` (falling back to the default port), and if the hub is not reachable it tries to launch it from `VOICEMEETER_HUB_EXE`, a bundled `voicemeeter-hub\VoicemeeterHub.exe`, or the per-user install path, then reconnects.
+- DLL discovery, edition/version detection, and the `VBVMR_RunVoicemeeter` restart-on-disconnect logic all live in the hub now. If Voicemeeter is installed but not running, the hub surfaces a clear "not running" error rather than guessing which edition to auto-launch.
+- The hub is limited to one process with a global mutex; every client shares its single Remote API session. The WebSocket protocol is documented in the hub repository's `docs/protocol.md`.
+- If a Remote API call reports `-2` after a PC sleep, reboot, or Voicemeeter restart, the hub logs out the stale session, logs in again, and retries that same call once before surfacing an error.
+- State (gain/mute for all `Strip[0..7]`/`Bus[0..7]`) is refreshed via `VBVMR_IsParametersDirty()` polling roughly once per second; all buttons sharing the same channel update together, mirroring Sonar's shared-state-cache pattern. (The hub can also push state to clients that subscribe; this plugin currently polls over the hub connection.)
+- When the Stream Dock host closes the plugin WebSocket, the plugin stops reconnecting and exits. The hub exits on its own after roughly 60 seconds with no connected clients, releasing the Remote API session even when the Stream Dock host does not provide a reliable shutdown hook.
 - Gain is a `float` in dB, clamped to `-60.0`..`+12.0`.
 - Device assignment uses Voicemeeter's string parameters (`Strip[i].device.<driver>` / `Bus[i].device.<driver>`) where `<driver>` is one of `mme`, `wdm`, `ks`, `asio`; device lists are enumerated via `VBVMR_Input_GetDeviceDescA`/`VBVMR_Output_GetDeviceDescA`.
 - MacroButtons use `VBVMR_MacroButton_SetStatus` with the `DEFAULT` bitmode on key-down/key-up (so both press and release fire, matching a physical button click) and `STATEONLY` reads for the displayed on/off icon state.
@@ -103,7 +105,7 @@ $env:STREAMDOCK_VOICEMEETER_REMOTE_MODE = "direct"
 Release output is written to:
 
 ```text
-dist/release/streamdock-voicemeeter-0.1.21.zip
+dist/release/streamdock-voicemeeter-0.2.0.zip
 ```
 
 The packaged plugin directory is:

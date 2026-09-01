@@ -8,7 +8,7 @@ public static class VoicemeeterRuntime
 
     public static IVoicemeeterClient Client { get; } = CreateClient();
     public static VoicemeeterStateService State { get; } = new(Client);
-    public static string RemoteMode { get; } = Client is VoicemeeterClient ? "direct" : "proxy";
+    public static string RemoteMode { get; } = Client is VoicemeeterClient ? "direct" : "hub";
 
     private static int _disposed;
 
@@ -20,12 +20,16 @@ public static class VoicemeeterRuntime
         Client.Dispose();
     }
 
+    // Remote API access mode (STREAMDOCK_VOICEMEETER_REMOTE_MODE):
+    //   "hub" (default) — talk to the shared voicemeeter-hub WebSocket service, which owns the one
+    //                     Remote API login session for the machine (see the voicemeeter-hub repo).
+    //   "direct"        — load VoicemeeterRemote64.dll in this process (legacy single-app behavior).
     private static IVoicemeeterClient CreateClient()
     {
         var mode = Environment.GetEnvironmentVariable(RemoteModeEnvironmentVariable);
         return string.Equals(mode, "direct", StringComparison.OrdinalIgnoreCase)
             ? new VoicemeeterClient()
-            : VoicemeeterProxyClient.Create();
+            : VoicemeeterHubClient.Create();
     }
 }
 
